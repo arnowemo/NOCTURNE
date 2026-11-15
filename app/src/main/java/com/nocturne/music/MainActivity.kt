@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
         setContent { NocturneApp(spotifyToken = spotifyToken, spotifyAuthStatus = spotifyAuthStatus, onSpotifyLogin = { connectSpotify() }, onPlaySpotifyUri = { playSpotifyUri(it) }, onPauseSpotify = { pauseSpotifyPlayback() }) }
         if (intent?.data != null) handleSpotifyRedirect(intent)
         else if (!savedToken.isNullOrBlank() && System.currentTimeMillis() < expiresAt) {
-            spotifyToken = savedToken; spotifyAuthStatus = "Session Spotify restaurée"; connectSpotifyRemote()
+            spotifyToken = savedToken; spotifyAuthStatus = "Session Spotify restaurée"
         } else if (!savedRefresh.isNullOrBlank()) {
             authScope.launch {
                 try { val token = refreshSpotifyAccessToken(savedRefresh); saveSpotifyTokens(token); spotifyToken = token.getString("access_token"); spotifyAuthStatus = "Session Spotify renouvelée" }
@@ -670,6 +670,7 @@ private fun spotifyTokenRequest(body: String): JSONObject {
     } finally { conn.disconnect() }
 }
 
+}
 
 private suspend fun spotifyPlaybackRequest(token: String, method: String, path: String, payload: JSONObject?) = withContext(Dispatchers.IO) {
     val conn = URL("https://api.spotify.com" + path).openConnection() as HttpURLConnection
