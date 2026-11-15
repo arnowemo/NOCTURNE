@@ -93,13 +93,13 @@ class MainActivity : ComponentActivity() {
         val savedToken = prefs.getString("access_token", null)
         val savedRefresh = prefs.getString("refresh_token", null)
         val expiresAt = prefs.getLong("expires_at", 0L)
-        setContent { NocturneApp(spotifyToken = spotifyToken, spotifyAuthStatus = spotifyAuthStatus, onSpotifyLogin = { connectSpotify() }, onPlaySpotifyUri = { playSpotifyUri(it) }, onPauseSpotify = { spotifyRemote?.playerApi?.pause() }) }
+        setContent { NocturneApp(spotifyToken = spotifyToken, spotifyAuthStatus = spotifyAuthStatus, onSpotifyLogin = { connectSpotify() }, onPlaySpotifyUri = { playSpotifyUri(it) }, onPauseSpotify = { pauseSpotifyPlayback() }) }
         if (intent?.data != null) handleSpotifyRedirect(intent)
         else if (!savedToken.isNullOrBlank() && System.currentTimeMillis() < expiresAt) {
             spotifyToken = savedToken; spotifyAuthStatus = "Session Spotify restaurée"; connectSpotifyRemote()
         } else if (!savedRefresh.isNullOrBlank()) {
             authScope.launch {
-                try { val token = refreshSpotifyAccessToken(savedRefresh); saveSpotifyTokens(token); spotifyToken = token.getString("access_token"); spotifyAuthStatus = "Session Spotify renouvelée"; connectSpotifyRemote() }
+                try { val token = refreshSpotifyAccessToken(savedRefresh); saveSpotifyTokens(token); spotifyToken = token.getString("access_token"); spotifyAuthStatus = "Session Spotify renouvelée" }
                 catch (_: Exception) { spotifyAuthStatus = "Session expirée — reconnectez Spotify" }
             }
         } else { spotifyAuthStatus = "Connectez votre compte Spotify" }
@@ -115,7 +115,7 @@ class MainActivity : ComponentActivity() {
                 .appendQueryParameter("client_id", BuildConfig.SPOTIFY_CLIENT_ID)
                 .appendQueryParameter("response_type", "code")
                 .appendQueryParameter("redirect_uri", BuildConfig.SPOTIFY_REDIRECT_URI)
-                .appendQueryParameter("scope", "user-library-read user-library-modify user-read-private app-remote-control")
+                .appendQueryParameter("scope", "user-library-read user-library-modify user-read-private user-modify-playback-state user-read-playback-state")
                 .appendQueryParameter("code_challenge_method", "S256")
                 .appendQueryParameter("code_challenge", challenge)
                 .appendQueryParameter("state", state)
@@ -156,8 +156,7 @@ class MainActivity : ComponentActivity() {
                 val token = exchangeSpotifyCode(code, verifier)
                 saveSpotifyTokens(token)
                 spotifyToken = token.getString("access_token")
-                spotifyAuthStatus = "Connexion Spotify réussie"
-                connectSpotifyRemote()
+                spotifyAuthStatus = "Spotify connecté — lecteur prêt"
             } catch (e: Exception) {
                 spotifyAuthStatus = "Échec OAuth Spotify : ${e.message ?: "erreur inconnue"}"
             }
@@ -173,33 +172,36 @@ class MainActivity : ComponentActivity() {
         editor.apply()
     }
 
-    private fun connectSpotifyRemote() {
-        if (spotifyRemote != null) return
-        spotifyAuthStatus = "Autorisation du lecteur Spotify…"
-        val params = ConnectionParams.Builder(BuildConfig.SPOTIFY_CLIENT_ID).setRedirectUri("nocturne-remote://callback").showAuthView(true).build()
-        SpotifyAppRemote.connect(this, params, object : Connector.ConnectionListener {
-            override fun onConnected(appRemote: SpotifyAppRemote) {
-                spotifyRemote = appRemote
-                spotifyAuthStatus = "Spotify prêt pour la lecture"
-                pendingSpotifyUri?.let { uri -> appRemote.playerApi.play(uri); pendingSpotifyUri = null }
-            }
-            override fun onFailure(error: Throwable) { spotifyAuthStatus = "Lecteur Spotify indisponible : " + (error.message ?: error.javaClass.simpleName) }
-        })
-    }
+    // Lecture via Spotify Web API : évite le flux d'autorisation App Remote
+    // qui échoue sur certains appareils malgré une connexion PKCE réussie.
     private fun playSpotifyUri(uri: String) {
-        val remote = spotifyRemote
-        if (remote != null) remote.playerApi.play(uri) else { pendingSpotifyUri = uri; connectSpotifyRemote() }
-    }
-    // Laisser Spotify continuer lorsque NOCTURNE passe en arrière-plan.
-    override fun onDestroy() {
-        spotifyRemote?.let {
-            try { it.playerApi.pause() } catch (_: Exception) { }
-            SpotifyAppRemote.disconnect(it)
+        val token = spotifyToken ?: run { spotifyAuthStatus = "Connectez Spotify avant la lecture"; return }
+        authScope.launch {
+            try {
+                val contextUri = if (uri.startsWith("spotify:album:") || uri.startsWith("spotify:playlist:")) uri else uri
+                spotifyPlaybackRequest(token, "PUT", "/v1/me/player/play", JSONObject().put("context_uri", contextUri))
+                spotifyAuthStatus = "Lecture lancée sur Spotify"
+            } catch (e: Exception) {
+                spotifyAuthStatus = "Lecture impossible : ${e.message ?: "ouvrez Spotify puis réessayez"}"
+            }
         }
-        spotifyRemote = null
+    }
+
+    private fun pauseSpotifyPlayback() {
+        val token = spotifyToken ?: return
+        authScope.launch {
+            try {
+                spotifyPlaybackRequest(token, "PUT", "/v1/me/player/pause", null)
+                spotifyAuthStatus = "Lecture en pause"
+            } catch (e: Exception) {
+                spotifyAuthStatus = "Pause impossible : ${e.message ?: "erreur Spotify"}"
+            }
+        }
+    }
+
+    override fun onDestroy() {
         super.onDestroy()
     }
-}
 
 @Composable
 fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin: () -> Unit, onPlaySpotifyUri: (String) -> Unit, onPauseSpotify: () -> Unit) {
@@ -665,5 +667,26 @@ private fun spotifyTokenRequest(body: String): JSONObject {
         val response = stream.bufferedReader().use { it.readText() }
         if (code !in 200..299) throw IllegalStateException("Spotify token API $code : $response")
         return JSONObject(response)
+    } finally { conn.disconnect() }
+}
+
+
+private suspend fun spotifyPlaybackRequest(token: String, method: String, path: String, payload: JSONObject?) = withContext(Dispatchers.IO) {
+    val conn = URL("https://api.spotify.com" + path).openConnection() as HttpURLConnection
+    try {
+        conn.requestMethod = method
+        conn.connectTimeout = 15000
+        conn.readTimeout = 15000
+        conn.setRequestProperty("Authorization", "Bearer " + token)
+        if (payload != null) {
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.doOutput = true
+            conn.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+        }
+        val code = conn.responseCode
+        if (code !in 200..299) {
+            val detail = try { conn.errorStream?.bufferedReader()?.use { it.readText() } } catch (_: Exception) { null }
+            throw IllegalStateException("Spotify API $code" + (detail?.takeIf { it.isNotBlank() }?.let { " : " + it } ?: ""))
+        }
     } finally { conn.disconnect() }
 }
