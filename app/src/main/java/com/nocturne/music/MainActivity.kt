@@ -67,78 +67,89 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun NocturneApp() {
-    var query by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf(albums.first()) }
-    var activeTab by remember { mutableStateOf(0) }
     var openedAlbum by remember { mutableStateOf<Album?>(null) }
     var playingTrack by remember { mutableStateOf(-1) }
-    val filtered = albums.filter { (it.title + it.artist).contains(query, true) }
     MaterialTheme(colorScheme = darkColorScheme(background = Night, surface = Stone, primary = Gold)) {
         Box(Modifier.fillMaxSize().background(Night)) {
             AsyncImage(model="https://images.unsplash.com/photo-1461360228754-6e81c478b882?auto=format&fit=crop&w=1400&q=85",contentDescription=null,contentScale=ContentScale.Crop,modifier=Modifier.fillMaxSize())
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xB9080709),Color(0xD9080709),Color(0xF9080709),Night))))
-            Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color(0x557D4D2C),Color.Transparent),radius=1050f)))
-            AnimatedVisibility(visible=openedAlbum==null,enter=fadeIn(tween(360)),exit=fadeOut(tween(220))) {
-                Column(Modifier.fillMaxSize()) {
-                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal=18.dp)) {
-                        Spacer(Modifier.height(30.dp))
-                        Row(verticalAlignment=Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("N O C T U R N E",color=Parchment,fontSize=12.sp,fontWeight=FontWeight.Bold,letterSpacing=4.sp)
-                                Text("LA MAISON DES DISQUES",color=Gold,fontSize=8.sp,letterSpacing=2.5.sp)
-                            }
-                            Icon(Icons.Default.DarkMode,null,tint=Gold,modifier=Modifier.size(23.dp))
-                        }
-                        Spacer(Modifier.height(28.dp))
-                        Text("Bienvenue dans",color=Parchment.copy(alpha=.76f),fontSize=14.sp,letterSpacing=1.sp)
-                        Text("votre archive sonore.",color=Parchment,fontSize=29.sp,lineHeight=34.sp,fontWeight=FontWeight.SemiBold)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Prenez le temps. Choisissez un disque.",color=Gold.copy(alpha=.9f),fontSize=11.sp)
-                        Spacer(Modifier.height(20.dp))
-                        OutlinedTextField(value=query,onValueChange={query=it},modifier=Modifier.fillMaxWidth(),placeholder={Text("Rechercher dans les rayonnages…",color=Ash)},leadingIcon={Icon(Icons.Default.Search,null,tint=Gold)},singleLine=true,shape=RoundedCornerShape(18.dp),colors=OutlinedTextFieldDefaults.colors(unfocusedBorderColor=Gold.copy(alpha=.35f),focusedBorderColor=Gold,unfocusedContainerColor=Color(0xA9100D0E),focusedContainerColor=Color(0xD9100D0E),cursorColor=Gold))
-                        Spacer(Modifier.height(27.dp))
-                        Row(verticalAlignment=Alignment.CenterVertically) {
-                            Text("VOTRE COLLECTION",color=Gold,fontSize=10.sp,letterSpacing=3.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
-                            Text(filtered.size.toString().padStart(2, '0') + " DISQUES",color=Ash,fontSize=8.sp,letterSpacing=1.5.sp)
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        Text("Vos albums, comme dans un vrai disquaire. Faites défiler et choisissez.",color=Parchment.copy(alpha=.7f),fontSize=10.sp)
-                        Spacer(Modifier.height(15.dp))
-                        AlbumShelf(filtered,selected){album->selected=album;openedAlbum=album}
-                        Spacer(Modifier.height(27.dp))
-                        Row(verticalAlignment=Alignment.CenterVertically) {
-                            Text("CABINES D'ÉCOUTE",color=Gold,fontSize=10.sp,letterSpacing=3.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
-                            Text("À DÉCOUVRIR",color=Ash,fontSize=8.sp,letterSpacing=1.5.sp)
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                            ArchiveTile("Post-rock","Paysages sonores",Icons.Default.Landscape,Modifier.weight(1f))
-                            ArchiveTile("Atmosphères","Lents & immersifs",Icons.Default.Waves,Modifier.weight(1f))
-                        }
-                        Spacer(Modifier.height(24.dp))
-                        Text("REPRENDRE LE FIL",color=Gold,fontSize=10.sp,letterSpacing=3.sp,fontWeight=FontWeight.Bold)
-                        Spacer(Modifier.height(10.dp))
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xD9141012)).border(1.dp,Gold.copy(alpha=.25f),RoundedCornerShape(16.dp)).clickable{openedAlbum=selected}.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
-                            AlbumArtwork(selected,Modifier.size(56.dp));Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(selected.title,color=Parchment,fontSize=12.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-                                Text(selected.artist,color=Ash,fontSize=10.sp)
-                            }
-                            Icon(Icons.Default.GraphicEq,null,tint=Gold,modifier=Modifier.size(25.dp))
-                        }
-                        Spacer(Modifier.height(20.dp))
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xA9080709),Color(0xD9080709),Color(0xF9080709),Night))))
+            Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color(0x667D4D2C),Color.Transparent),radius=1050f)))
+            AnimatedVisibility(visible=openedAlbum==null,enter=fadeIn(tween(500)),exit=fadeOut(tween(260))) {
+                Column(Modifier.fillMaxSize().padding(top=30.dp,bottom=24.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceBetween) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal=26.dp)) {
+                        Text("N O C T U R N E",color=Parchment,fontSize=13.sp,fontWeight=FontWeight.Bold,letterSpacing=5.sp)
+                        Spacer(Modifier.height(7.dp))
+                        Text("LA COLLECTION PRIVÉE",color=Gold,fontSize=9.sp,letterSpacing=3.sp)
                     }
-                    Row(Modifier.fillMaxWidth().background(Color(0xF20C0A0C)).border(1.dp,Gold.copy(alpha=.15f)).padding(vertical=10.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
-                        NavItem(Icons.Default.Home,"Maison",activeTab==0){activeTab=0}
-                        NavItem(Icons.Default.Explore,"Explorer",activeTab==1){activeTab=1}
-                        NavItem(Icons.Default.LibraryMusic,"Archives",activeTab==2){activeTab=2}
-                        NavItem(Icons.Default.Settings,"Réglages",activeTab==3){activeTab=3}
+                    Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                        Text("Prenez un disque.",color=Parchment,fontSize=27.sp,fontWeight=FontWeight.SemiBold)
+                        Spacer(Modifier.height(7.dp))
+                        Text("Faites défiler votre collection.",color=Gold.copy(alpha=.82f),fontSize=12.sp,letterSpacing=1.sp)
+                    }
+                    AlbumCarousel(items=albums,selected=selected,onSelect={selected=it;openedAlbum=it},onFocus={selected=it})
+                    Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                        Row(horizontalArrangement=Arrangement.spacedBy(7.dp),verticalAlignment=Alignment.CenterVertically) {
+                            Icon(Icons.Default.Swipe,null,tint=Gold,modifier=Modifier.size(17.dp))
+                            Text("GLISSEZ DE GAUCHE À DROITE",color=Gold.copy(alpha=.85f),fontSize=9.sp,letterSpacing=2.sp)
+                        }
+                        Spacer(Modifier.height(13.dp))
+                        Text("TOUCHEZ LA POCHETTE POUR ÉCOUTER",color=Ash.copy(alpha=.7f),fontSize=8.sp,letterSpacing=1.5.sp)
                     }
                 }
             }
-            AnimatedVisibility(visible=openedAlbum!=null,enter=fadeIn(tween(260))+slideInVertically(initialOffsetY={it/5},animationSpec=tween(420,easing=FastOutSlowInEasing)),exit=fadeOut(tween(180))+slideOutVertically(targetOffsetY={it/8},animationSpec=tween(220))) {
+            AnimatedVisibility(visible=openedAlbum!=null,enter=fadeIn(tween(300))+slideInVertically(initialOffsetY={it/6},animationSpec=tween(450,easing=FastOutSlowInEasing)),exit=fadeOut(tween(200))) {
                 openedAlbum?.let{album->AlbumRoomScreen(album,{openedAlbum=null},playingTrack){playingTrack=it}}
             }
+        }
+    }
+}
+
+@Composable
+private fun AlbumCarousel(items:List<Album>,selected:Album,onSelect:(Album)->Unit,onFocus:(Album)->Unit) {
+    val scroll=rememberScrollState()
+    val density= androidx.compose.ui.platform.LocalDensity.current
+    val cardWidth=250.dp
+    val gap=18.dp
+    val stepPx=with(density){(cardWidth+gap).toPx()}
+    LaunchedEffect(scroll.value) {
+        kotlinx.coroutines.delay(90)
+        val index=((scroll.value/stepPx).toInt()).coerceIn(0,items.lastIndex)
+        items.getOrNull(index)?.let(onFocus)
+    }
+    BoxWithConstraints(Modifier.fillMaxWidth().height(430.dp),contentAlignment=Alignment.Center) {
+        val sidePad=(maxWidth-cardWidth)/2
+        Row(Modifier.fillMaxWidth().horizontalScroll(scroll),verticalAlignment=Alignment.CenterVertically) {
+            Spacer(Modifier.width(sidePad))
+            items.forEachIndexed{index,album->
+                val offset=(scroll.value/stepPx)-index
+                val distance=kotlin.math.abs(offset).coerceIn(0f,1.5f)
+                val focused=album==selected
+                Box(Modifier.width(cardWidth).padding(end=gap).graphicsLayer {
+                    val d=offset.coerceIn(-1.4f,1.4f)
+                    rotationY=d*-25f
+                    rotationZ=d*-2.5f
+                    scaleX=1f-distance*.17f
+                    scaleY=1f-distance*.17f
+                    translationX=d*18f*density
+                    cameraDistance=22f*density
+                    shadowElevation=(1.5f-distance*.5f).coerceAtLeast(.2f)*28f
+                    alpha=1f-distance*.22f
+                }.clickable{onSelect(album)}) {
+                    Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                        Box(Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xFF160F12)).border(if(focused)2.dp else 1.dp,if(focused)Gold else Gold.copy(alpha=.3f),RoundedCornerShape(5.dp)).padding(7.dp)) {
+                            AlbumArtwork(album,Modifier.fillMaxSize())
+                            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0x66FFFFFF),Color.Transparent,Color(0x88000000)))))
+                            if(focused) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp).background(Brush.horizontalGradient(listOf(Color.Transparent,Gold,Color.Transparent))))
+                        }
+                        Spacer(Modifier.height(15.dp))
+                        Text(album.title,color=Parchment,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+                        Spacer(Modifier.height(4.dp))
+                        Text(album.artist,color=Ash,fontSize=10.sp,maxLines=1)
+                    }
+                }
+            }
+            Spacer(Modifier.width(sidePad))
         }
     }
 }
@@ -169,6 +180,11 @@ private fun AlbumRoomScreen(album: Album, onBack: () -> Unit, playingTrack: Int,
                 }
             }
             Box(Modifier.align(Alignment.TopCenter).padding(top=18.dp).width(90.dp).height(2.dp).background(Brush.horizontalGradient(listOf(Color.Transparent,Gold,Color.Transparent))))
+            Box(Modifier.align(Alignment.TopEnd).padding(top=32.dp,end=42.dp).width(112.dp).height(180.dp).graphicsLayer { rotationZ = if(playingTrack>=0) 8f else 0f; transformOrigin=androidx.compose.ui.graphics.TransformOrigin(.88f,.08f) }) {
+                Box(Modifier.align(Alignment.TopEnd).width(8.dp).height(8.dp).clip(RoundedCornerShape(50)).background(Brush.radialGradient(listOf(Color(0xFFEAD8B0),Color(0xFF715B3D)))))
+                Box(Modifier.align(Alignment.TopEnd).padding(top=5.dp,end=3.dp).width(4.dp).height(148.dp).graphicsLayer { rotationZ=12f }.background(Brush.verticalGradient(listOf(Color(0xFFE4D0A5),Color(0xFF66523C),Color(0xFFD7C49A))),RoundedCornerShape(4.dp)))
+                Box(Modifier.align(Alignment.BottomStart).padding(start=9.dp,bottom=16.dp).width(12.dp).height(22.dp).background(Color(0xFFB69A69),RoundedCornerShape(3.dp)))
+            }
             Text("FACE A  ·  33⅓ RPM",color=Gold.copy(alpha=.8f),fontSize=8.sp,letterSpacing=2.sp,modifier=Modifier.align(Alignment.BottomCenter).padding(bottom=18.dp))
         }
         Spacer(Modifier.height(25.dp))
