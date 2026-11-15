@@ -178,11 +178,37 @@ class MainActivity : ComponentActivity() {
         val token = spotifyToken ?: run { spotifyAuthStatus = "Connectez Spotify avant la lecture"; return }
         authScope.launch {
             try {
-                val contextUri = if (uri.startsWith("spotify:album:") || uri.startsWith("spotify:playlist:")) uri else uri
-                spotifyPlaybackRequest(token, "PUT", "/v1/me/player/play", JSONObject().put("context_uri", contextUri))
-                spotifyAuthStatus = "Lecture lancée sur Spotify"
+                val devices = spotifyGetDevices(token)
+                val available = devices.optJSONArray("devices") ?: org.json.JSONArray()
+                var targetId: String? = null
+                for (i in 0 until available.length()) {
+                    val device = available.getJSONObject(i)
+                    if (device.optBoolean("is_active") && !device.optBoolean("is_restricted")) {
+                        targetId = device.optString("id").takeIf { it.isNotBlank() }
+                        break
+                    }
+                }
+                if (targetId == null) {
+                    for (i in 0 until available.length()) {
+                        val device = available.getJSONObject(i)
+                        if (!device.optBoolean("is_restricted")) {
+                            targetId = device.optString("id").takeIf { it.isNotBlank() }
+                            if (targetId != null) break
+                        }
+                    }
+                }
+                if (targetId == null) {
+                    throw IllegalStateException("Aucun appareil Spotify disponible. Ouvre Spotify sur ton téléphone, lance un morceau quelques secondes, puis réessaie dans NOCTURNE.")
+                }
+                val payload = when {
+                    uri.startsWith("spotify:album:") || uri.startsWith("spotify:playlist:") -> JSONObject().put("context_uri", uri)
+                    uri.startsWith("spotify:track:") -> JSONObject().put("uris", org.json.JSONArray().put(uri))
+                    else -> throw IllegalArgumentException("Type de contenu Spotify non pris en charge")
+                }
+                spotifyPlaybackRequest(token, "PUT", "/v1/me/player/play?device_id=" + URLEncoder.encode(targetId, "UTF-8"), payload)
+                spotifyAuthStatus = "Lecture envoyée à Spotify"
             } catch (e: Exception) {
-                spotifyAuthStatus = "Lecture impossible : ${e.message ?: "ouvrez Spotify puis réessayez"}"
+                spotifyAuthStatus = "Lecture impossible : ${e.message ?: "réessaie après avoir ouvert Spotify"}"
             }
         }
     }
@@ -670,6 +696,21 @@ private fun spotifyTokenRequest(body: String): JSONObject {
     } finally { conn.disconnect() }
 }
 
+}
+
+private suspend fun spotifyGetDevices(token: String): JSONObject = withContext(Dispatchers.IO) {
+    val conn = URL("https://api.spotify.com/v1/me/player/devices").openConnection() as HttpURLConnection
+    try {
+        conn.requestMethod = "GET"
+        conn.connectTimeout = 15000
+        conn.readTimeout = 15000
+        conn.setRequestProperty("Authorization", "Bearer " + token)
+        val code = conn.responseCode
+        val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+        val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+        if (code !in 200..299) throw IllegalStateException("Spotify appareils API $code : $response")
+        JSONObject(response)
+    } finally { conn.disconnect() }
 }
 
 private suspend fun spotifyPlaybackRequest(token: String, method: String, path: String, payload: JSONObject?) = withContext(Dispatchers.IO) {
