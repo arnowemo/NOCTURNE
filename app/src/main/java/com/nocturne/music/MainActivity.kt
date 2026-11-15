@@ -131,8 +131,8 @@ private fun AlbumCarousel(items:List<Album>,selected:Album,onSelect:(Album)->Uni
                     rotationZ=d*-2.5f
                     scaleX=1f-distance*.17f
                     scaleY=1f-distance*.17f
-                    translationX=d*18f*density
-                    cameraDistance=22f*density
+                    translationX=d*with(density){18.dp.toPx()}
+                    cameraDistance=22f*density.density
                     shadowElevation=(1.5f-distance*.5f).coerceAtLeast(.2f)*28f
                     alpha=1f-distance*.22f
                 }.clickable{onSelect(album)}) {
