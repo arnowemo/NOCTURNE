@@ -163,6 +163,15 @@ fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin
         else roomTracks = emptyList()
     }
 
+    LaunchedEffect(catalogMode, searchQuery, spotifyToken) {
+        if (catalogMode && spotifyToken != null && searchQuery.trim().length >= 2) {
+            kotlinx.coroutines.delay(450)
+            searching = true
+            try { searchResults = searchSpotifyAlbums(spotifyToken, searchQuery.trim()); searchMessage = searchResults.size.toString() + " résultats" }
+            catch (e: Exception) { searchMessage = "Recherche impossible : " + (e.message ?: "erreur") }
+            finally { searching = false }
+        } else if (searchQuery.isBlank()) { searchResults = emptyList(); searchMessage = "" }
+    }
     LaunchedEffect(spotifyToken) {
         if (spotifyToken != null) {
             loadingCollection = true
