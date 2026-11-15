@@ -257,26 +257,55 @@ private fun SectionHeading(title: String, detail: String) {
 @Composable
 private fun AlbumShelf(items: List<Album>, selected: Album, onSelect: (Album) -> Unit) {
     Column {
+        // The horizontal scroll is intentionally the main interaction: slide the records
+        // from left to right, like browsing sleeves on a real listening-room shelf.
         Row(
-            Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            items.forEach { album ->
-                Column(Modifier.width(142.dp).clickable { onSelect(album) }) {
-                    AlbumArtwork(album, Modifier.fillMaxWidth().height(142.dp))
-                    Spacer(Modifier.height(9.dp))
-                    Text(album.title, color = if (album == selected) Parchment else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
+            items.forEachIndexed { index, album ->
+                Column(
+                    Modifier.width(188.dp).clickable { onSelect(album) },
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth().height(190.dp)
+                            .background(Color(0xFF1B1110), RoundedCornerShape(5.dp))
+                            .padding(horizontal = 5.dp, vertical = 5.dp)
+                    ) {
+                        AlbumArtwork(album, Modifier.fillMaxSize())
+                        // warm gallery spotlight over each sleeve
+                        Box(
+                            Modifier.fillMaxSize().background(
+                                Brush.radialGradient(
+                                    colors = listOf(Gold.copy(alpha = if (album == selected) .20f else .09f), Color.Transparent),
+                                    radius = 360f
+                                )
+                            )
+                        )
+                        if (album == selected) {
+                            Box(
+                                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(3.dp)
+                                    .background(Gold.copy(alpha = .9f))
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(album.title, color = if (album == selected) Parchment else Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
                     Text(album.artist, color = Ash, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
-        // A wooden shelf lip under the album row.
-        Box(
-            Modifier.fillMaxWidth().height(12.dp)
-                .background(Brush.verticalGradient(listOf(Color(0xFF76553A), Color(0xFF302019))))
-                .border(1.dp, Color(0xFF9A7650).copy(alpha = .35f), RoundedCornerShape(2.dp))
-        )
-        Box(Modifier.fillMaxWidth().height(4.dp).background(Color(0xFF050405)))
+        // Deep wooden shelf: fascia, edge highlight and shadow.
+        Box(Modifier.fillMaxWidth().height(19.dp).background(
+            Brush.verticalGradient(listOf(Color(0xFFB18456), Color(0xFF6A4229), Color(0xFF28170F)))
+        )) {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFE2B77C).copy(alpha = .65f)))
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp).background(Color.Black.copy(alpha = .55f)))
+        }
+        Box(Modifier.fillMaxWidth().height(7.dp).background(Color(0xFF050405)))
+        Spacer(Modifier.height(4.dp))
+        Text("‹  FAITES DÉFILER LES POCHETTES  ›", color = Gold.copy(alpha = .7f), fontSize = 8.sp, letterSpacing = 2.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
     }
 }
 
