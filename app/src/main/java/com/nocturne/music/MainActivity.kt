@@ -75,7 +75,7 @@ fun NocturneApp() {
     val filtered = albums.filter { (it.title + it.artist).contains(query, true) }
     MaterialTheme(colorScheme = darkColorScheme(background = Night, surface = Stone, primary = Gold)) {
         Box(Modifier.fillMaxSize().background(Night)) {
-            AsyncImage(model="https://images.unsplash.com/photo-1758405392912-eb488da67a82?auto=format&fit=crop&w=1400&q=85",contentDescription=null,contentScale=ContentScale.Crop,modifier=Modifier.fillMaxSize())
+            AsyncImage(model="https://images.unsplash.com/photo-1461360228754-6e81c478b882?auto=format&fit=crop&w=1400&q=85",contentDescription=null,contentScale=ContentScale.Crop,modifier=Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xB9080709),Color(0xD9080709),Color(0xF9080709),Night))))
             Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color(0x557D4D2C),Color.Transparent),radius=1050f)))
             AnimatedVisibility(visible=openedAlbum==null,enter=fadeIn(tween(360)),exit=fadeOut(tween(220))) {
@@ -98,11 +98,11 @@ fun NocturneApp() {
                         OutlinedTextField(value=query,onValueChange={query=it},modifier=Modifier.fillMaxWidth(),placeholder={Text("Rechercher dans les rayonnages…",color=Ash)},leadingIcon={Icon(Icons.Default.Search,null,tint=Gold)},singleLine=true,shape=RoundedCornerShape(18.dp),colors=OutlinedTextFieldDefaults.colors(unfocusedBorderColor=Gold.copy(alpha=.35f),focusedBorderColor=Gold,unfocusedContainerColor=Color(0xA9100D0E),focusedContainerColor=Color(0xD9100D0E),cursorColor=Gold))
                         Spacer(Modifier.height(27.dp))
                         Row(verticalAlignment=Alignment.CenterVertically) {
-                            Text("LE GRAND RAYON",color=Gold,fontSize=10.sp,letterSpacing=3.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
-                            Text("\${filtered.size.toString().padStart(2,'0')} DISQUES",color=Ash,fontSize=8.sp,letterSpacing=1.5.sp)
+                            Text("VOTRE COLLECTION",color=Gold,fontSize=10.sp,letterSpacing=3.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+                            Text(filtered.size.toString().padStart(2, '0') + " DISQUES",color=Ash,fontSize=8.sp,letterSpacing=1.5.sp)
                         }
                         Spacer(Modifier.height(12.dp))
-                        Text("Faites glisser les pochettes pour parcourir votre collection",color=Parchment.copy(alpha=.7f),fontSize=10.sp)
+                        Text("Vos albums, comme dans un vrai disquaire. Faites défiler et choisissez.",color=Parchment.copy(alpha=.7f),fontSize=10.sp)
                         Spacer(Modifier.height(15.dp))
                         AlbumShelf(filtered,selected){album->selected=album;openedAlbum=album}
                         Spacer(Modifier.height(27.dp))
@@ -116,7 +116,7 @@ fun NocturneApp() {
                             ArchiveTile("Atmosphères","Lents & immersifs",Icons.Default.Waves,Modifier.weight(1f))
                         }
                         Spacer(Modifier.height(24.dp))
-                        Text("EN CE MOMENT",color=Gold,fontSize=10.sp,letterSpacing=3.sp,fontWeight=FontWeight.Bold)
+                        Text("REPRENDRE LE FIL",color=Gold,fontSize=10.sp,letterSpacing=3.sp,fontWeight=FontWeight.Bold)
                         Spacer(Modifier.height(10.dp))
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xD9141012)).border(1.dp,Gold.copy(alpha=.25f),RoundedCornerShape(16.dp)).clickable{openedAlbum=selected}.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
                             AlbumArtwork(selected,Modifier.size(56.dp));Spacer(Modifier.width(12.dp))
