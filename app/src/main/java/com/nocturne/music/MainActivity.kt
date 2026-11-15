@@ -71,13 +71,16 @@ private const val SPOTIFY_REQUEST_CODE = 7301
 
 class MainActivity : ComponentActivity() {
     private var spotifyToken by mutableStateOf<String?>(null)
+    private var spotifyAuthStatus by mutableStateOf("Connexion non démarrée")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { NocturneApp(spotifyToken = spotifyToken, onSpotifyLogin = { connectSpotify() }) }
+        setContent { NocturneApp(spotifyToken = spotifyToken, spotifyAuthStatus = spotifyAuthStatus, onSpotifyLogin = { connectSpotify() }) }
     }
 
     private fun connectSpotify() {
+        spotifyAuthStatus = "Ouverture de Spotify…"
+        try {
         val request = AuthorizationRequest.Builder(
             BuildConfig.SPOTIFY_CLIENT_ID,
             AuthorizationResponse.Type.TOKEN,
@@ -86,6 +89,9 @@ class MainActivity : ComponentActivity() {
             .setShowDialog(true)
             .build()
         AuthorizationClient.openLoginActivity(this, SPOTIFY_REQUEST_CODE, request)
+        } catch (e: Exception) {
+            spotifyAuthStatus = "Impossible de lancer Spotify : ${e.javaClass.simpleName} ${e.message ?: ""}"
+        }
     }
 
     @Deprecated("Spotify auth library returns its result through this callback")
@@ -94,15 +100,17 @@ class MainActivity : ComponentActivity() {
         if (requestCode == SPOTIFY_REQUEST_CODE) {
             val response = AuthorizationClient.getResponse(resultCode, data)
             when (response.type) {
-                AuthorizationResponse.Type.TOKEN -> spotifyToken = response.accessToken
-                else -> spotifyToken = null
+                AuthorizationResponse.Type.TOKEN -> { spotifyToken = response.accessToken; spotifyAuthStatus = "Connexion réussie" }
+                AuthorizationResponse.Type.ERROR -> { spotifyToken = null; spotifyAuthStatus = "Erreur Spotify : ${response.error ?: "non précisée"}" }
+                AuthorizationResponse.Type.CANCELLED -> { spotifyToken = null; spotifyAuthStatus = "Connexion annulée" }
+                else -> { spotifyToken = null; spotifyAuthStatus = "Réponse Spotify inattendue : ${response.type}" }
             }
         }
     }
 }
 
 @Composable
-fun NocturneApp(spotifyToken: String?, onSpotifyLogin: () -> Unit) {
+fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin: () -> Unit) {
     var selected by remember { mutableStateOf(albums.first()) }
     var collection by remember { mutableStateOf(albums) }
     var openedAlbum by remember { mutableStateOf<Album?>(null) }
@@ -153,6 +161,7 @@ fun NocturneApp(spotifyToken: String?, onSpotifyLogin: () -> Unit) {
                             }
                         }
                         Text(spotifyMessage,color=Ash,fontSize=9.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                        Text(spotifyAuthStatus,color=Gold.copy(alpha=.85f),fontSize=8.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
                         if(loadingCollection) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=5.dp),color=Gold,trackColor=Stone)
                     }
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
