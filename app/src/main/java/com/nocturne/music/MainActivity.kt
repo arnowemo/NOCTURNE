@@ -81,7 +81,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val prefs = getSharedPreferences("nocturne_spotify", MODE_PRIVATE)
+        val savedToken = prefs.getString("access_token", null)
+        val expiresAt = prefs.getLong("expires_at", 0L)
+        if (!savedToken.isNullOrBlank() && System.currentTimeMillis() < expiresAt) { spotifyToken = savedToken; spotifyAuthStatus = "Session Spotify restaurée" } else { prefs.edit().remove("access_token").remove("expires_at").apply() }
         setContent { NocturneApp(spotifyToken = spotifyToken, spotifyAuthStatus = spotifyAuthStatus, onSpotifyLogin = { connectSpotify() }, onPlaySpotifyUri = { playSpotifyUri(it) }, onPauseSpotify = { spotifyRemote?.playerApi?.pause() }) }
+        if (spotifyToken != null) connectSpotifyRemote()
     }
 
     private fun connectSpotify() {
@@ -106,7 +111,7 @@ class MainActivity : ComponentActivity() {
         if (requestCode == SPOTIFY_REQUEST_CODE) {
             val response = AuthorizationClient.getResponse(resultCode, data)
             when (response.type) {
-                AuthorizationResponse.Type.TOKEN -> { spotifyToken = response.accessToken; spotifyAuthStatus = "Connexion réussie"; connectSpotifyRemote() }
+                AuthorizationResponse.Type.TOKEN -> { spotifyToken = response.accessToken; val lifetimeMs = (response.expiresIn.coerceAtLeast(60) - 60).toLong() * 1000L; getSharedPreferences("nocturne_spotify", MODE_PRIVATE).edit().putString("access_token", response.accessToken).putLong("expires_at", System.currentTimeMillis() + lifetimeMs).apply(); spotifyAuthStatus = "Connexion réussie — session mémorisée"; connectSpotifyRemote() }
                 AuthorizationResponse.Type.ERROR -> { spotifyToken = null; spotifyAuthStatus = "Erreur Spotify : ${response.error ?: "non précisée"}" }
                 AuthorizationResponse.Type.CANCELLED -> { spotifyToken = null; spotifyAuthStatus = "Connexion annulée" }
                 else -> { spotifyToken = null; spotifyAuthStatus = "Réponse Spotify inattendue : ${response.type}" }
@@ -132,9 +137,9 @@ class MainActivity : ComponentActivity() {
         if (remote != null) remote.playerApi.play(uri) else { pendingSpotifyUri = uri; connectSpotifyRemote() }
     }
     override fun onStop() {
-        super.onStop()
-        spotifyRemote?.let { SpotifyAppRemote.disconnect(it) }
+        spotifyRemote?.let { try { it.playerApi.pause() } catch (_: Exception) { }; SpotifyAppRemote.disconnect(it) }
         spotifyRemote = null
+        super.onStop()
     }
 }
 
