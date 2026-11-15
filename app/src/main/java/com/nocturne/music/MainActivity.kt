@@ -664,6 +664,6 @@ private fun spotifyTokenRequest(body: String): JSONObject {
         val stream = if (code in 200..299) conn.inputStream else conn.errorStream
         val response = stream.bufferedReader().use { it.readText() }
         if (code !in 200..299) throw IllegalStateException("Spotify token API $code : $response")
-        JSONObject(response)
+        return JSONObject(response)
     } finally { conn.disconnect() }
 }
