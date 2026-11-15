@@ -266,6 +266,37 @@ fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin
     }
 }
 
+private suspend fun searchSpotifyAlbums(token: String, query: String): List<Album> = withContext(Dispatchers.IO) {
+    val q=java.net.URLEncoder.encode(query,"UTF-8")
+    val conn=URL("https://api.spotify.com/v1/search?q=" + q + "&type=album&limit=50").openConnection() as HttpURLConnection
+    try {
+        conn.setRequestProperty("Authorization","Bearer " + token)
+        val code=conn.responseCode
+        val body=(if(code in 200..299) conn.inputStream else conn.errorStream).bufferedReader().use{it.readText()}
+        if(code !in 200..299) throw IllegalStateException("Spotify API " + code)
+        val items=JSONObject(body).optJSONObject("albums")?.optJSONArray("items") ?: return@withContext emptyList()
+        val colors=listOf(Color(0xFF777968),Color(0xFF987C75),Color(0xFF526875),Color(0xFF705665),Color(0xFF82785F))
+        val symbols=listOf("✦","☾","✧","✦","⌁")
+        buildList { for(i in 0 until items.length()) {
+            val a=items.getJSONObject(i); val imgs=a.optJSONArray("images")
+            val image=if(imgs!=null && imgs.length()>0) imgs.getJSONObject(0).optString("url").takeIf{it.isNotBlank()} else null
+            val artists=a.optJSONArray("artists"); val artist=if(artists!=null && artists.length()>0) artists.getJSONObject(0).optString("name") else "Artiste inconnu"
+            val id=a.optString("id").takeIf{it.isNotBlank()}
+            add(Album(a.optString("name","Album"),artist,colors[i%5],symbols[i%5],image,id,id?.let{"spotify:album:" + it}))
+        } }
+    } finally { conn.disconnect() }
+}
+
+private suspend fun addAlbumToLibrary(token: String, id: String) = withContext(Dispatchers.IO) {
+    val conn=URL("https://api.spotify.com/v1/me/albums?ids=" + id).openConnection() as HttpURLConnection
+    try {
+        conn.requestMethod="PUT"; conn.setRequestProperty("Authorization","Bearer " + token)
+        conn.setRequestProperty("Content-Type","application/json"); conn.doOutput=true
+        conn.outputStream.use{it.write("{}".toByteArray())}
+        if(conn.responseCode !in 200..299) throw IllegalStateException("Spotify API " + conn.responseCode)
+    } finally { conn.disconnect() }
+}
+
 private suspend fun loadSavedAlbums(token: String): List<Album> = withContext(Dispatchers.IO) {
     val connection = (URL("https://api.spotify.com/v1/me/albums?limit=50").openConnection() as HttpURLConnection)
     try {
