@@ -5,6 +5,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -65,144 +73,71 @@ fun NocturneApp() {
     var openedAlbum by remember { mutableStateOf<Album?>(null) }
     var playingTrack by remember { mutableStateOf(-1) }
     val filtered = albums.filter { (it.title + it.artist).contains(query, true) }
-
     MaterialTheme(colorScheme = darkColorScheme(background = Night, surface = Stone, primary = Gold)) {
         Box(Modifier.fillMaxSize().background(Night)) {
-            if (openedAlbum != null) {
-                AlbumRoomScreen(openedAlbum!!, { openedAlbum = null }, playingTrack) { playingTrack = it }
-            } else {
-            // Subtle cathedral-like ambient glow behind the library.
-            Box(
-                Modifier.fillMaxWidth().height(390.dp)
-                    .background(Brush.verticalGradient(listOf(Color(0xFF29212A), Color(0xFF111015), Night)))
-            )
-            Column(Modifier.fillMaxSize()) {
-                Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp)
-                ) {
-                    Spacer(Modifier.height(38.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("N O C T U R N E", color = Parchment, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
-                            Text("THE PRIVATE MUSIC ARCHIVE", color = Gold.copy(alpha = .8f), fontSize = 8.sp, letterSpacing = 2.sp)
+            AsyncImage(model="https://images.unsplash.com/photo-1758405392912-eb488da67a82?auto=format&fit=crop&w=1400&q=85",contentDescription=null,contentScale=ContentScale.Crop,modifier=Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xB9080709),Color(0xD9080709),Color(0xF9080709),Night))))
+            Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color(0x557D4D2C),Color.Transparent),radius=1050f)))
+            AnimatedVisibility(visible=openedAlbum==null,enter=fadeIn(tween(360)),exit=fadeOut(tween(220))) {
+                Column(Modifier.fillMaxSize()) {
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal=18.dp)) {
+                        Spacer(Modifier.height(30.dp))
+                        Row(verticalAlignment=Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("N O C T U R N E",color=Parchment,fontSize=12.sp,fontWeight=FontWeight.Bold,letterSpacing=4.sp)
+                                Text("LA MAISON DES DISQUES",color=Gold,fontSize=8.sp,letterSpacing=2.5.sp)
+                            }
+                            Icon(Icons.Default.DarkMode,null,tint=Gold,modifier=Modifier.size(23.dp))
                         }
-                        Icon(Icons.Default.DarkMode, contentDescription = null, tint = Gold, modifier = Modifier.size(22.dp))
-                    }
-
-                    Spacer(Modifier.height(30.dp))
-                    // Photographic record-store entrance with cinematic overlays.
-                    val glow = rememberInfiniteTransition(label = "ambient-glow")
-                    val glowAlpha by glow.animateFloat(
-                        initialValue = 0.10f,
-                        targetValue = 0.24f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(3200),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "glow-alpha"
-                    )
-                    Box(
-                        Modifier.fillMaxWidth().height(238.dp)
-                            .clip(RoundedCornerShape(topStart = 92.dp, topEnd = 92.dp, bottomStart = 14.dp, bottomEnd = 14.dp))
-                            .border(1.dp, Gold.copy(alpha = .42f), RoundedCornerShape(topStart = 92.dp, topEnd = 92.dp, bottomStart = 14.dp, bottomEnd = 14.dp))
-                    ) {
-                        AsyncImage(
-                            model = "https://signalstation.music/assets/hero-bg-Bhv-YTOa.jpg",
-                            contentDescription = "Intérieur d'un magasin de vinyles",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        Box(
-                            Modifier.fillMaxSize().background(
-                                Brush.verticalGradient(
-                                    listOf(Color(0x33100A08), Color(0xAA120D12), Color(0xF208080B))
-                                )
-                            )
-                        )
-                        Box(
-                            Modifier.fillMaxSize().background(
-                                Brush.radialGradient(
-                                    colors = listOf(Gold.copy(alpha = glowAlpha), Color.Transparent),
-                                    radius = 620f
-                                )
-                            )
-                        )
-                        Column(
-                            Modifier.align(Alignment.BottomStart).padding(start = 22.dp, end = 22.dp, bottom = 22.dp)
-                        ) {
-                            Text("✦  ARCHIVES SONORES  ✦", color = Gold, fontSize = 9.sp, letterSpacing = 2.5.sp)
-                            Spacer(Modifier.height(7.dp))
-                            Text("Entrez dans votre\nunivers musical.", color = Parchment, fontSize = 25.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(5.dp))
-                            Text("Une collection à explorer, album après album.", color = Parchment.copy(alpha = .82f), fontSize = 11.sp)
+                        Spacer(Modifier.height(28.dp))
+                        Text("Bienvenue dans",color=Parchment.copy(alpha=.76f),fontSize=14.sp,letterSpacing=1.sp)
+                        Text("votre archive sonore.",color=Parchment,fontSize=29.sp,lineHeight=34.sp,fontWeight=FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Prenez le temps. Choisissez un disque.",color=Gold.copy(alpha=.9f),fontSize=11.sp)
+                        Spacer(Modifier.height(20.dp))
+                        OutlinedTextField(value=query,onValueChange={query=it},modifier=Modifier.fillMaxWidth(),placeholder={Text("Rechercher dans les rayonnages…",color=Ash)},leadingIcon={Icon(Icons.Default.Search,null,tint=Gold)},singleLine=true,shape=RoundedCornerShape(18.dp),colors=OutlinedTextFieldDefaults.colors(unfocusedBorderColor=Gold.copy(alpha=.35f),focusedBorderColor=Gold,unfocusedContainerColor=Color(0xA9100D0E),focusedContainerColor=Color(0xD9100D0E),cursorColor=Gold))
+                        Spacer(Modifier.height(27.dp))
+                        Row(verticalAlignment=Alignment.CenterVertically) {
+                            Text("LE GRAND RAYON",color=Gold,fontSize=10.sp,letterSpacing=3.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+                            Text("\${filtered.size.toString().padStart(2,'0')} DISQUES",color=Ash,fontSize=8.sp,letterSpacing=1.5.sp)
                         }
-                    }
-
-                    Spacer(Modifier.height(22.dp))
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Rechercher un album ou un artiste…", color = Ash) },
-                        leadingIcon = { Icon(Icons.Default.Search, null, tint = Gold) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = Gold.copy(alpha = .22f),
-                            focusedBorderColor = Gold,
-                            unfocusedContainerColor = Color(0xFF100F14),
-                            focusedContainerColor = Color(0xFF100F14),
-                            cursorColor = Gold
-                        )
-                    )
-
-                    Spacer(Modifier.height(28.dp))
-                    SectionHeading("VOTRE COLLECTION", "05 ALBUMS")
-                    Spacer(Modifier.height(14.dp))
-                    AlbumShelf(filtered, selected) { selected = it; openedAlbum = it }
-
-                    Spacer(Modifier.height(28.dp))
-                    SectionHeading("LES ARCHIVES", "SÉLECTION")
-                    Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ArchiveTile("Post-rock", "Paysages sonores", Icons.Default.Landscape, Modifier.weight(1f))
-                        ArchiveTile("Atmosphères", "Lents & immersifs", Icons.Default.Waves, Modifier.weight(1f))
-                    }
-
-                    Spacer(Modifier.height(26.dp))
-                    SectionHeading("EN ÉCOUTE", "LECTEUR")
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                            .background(Brush.horizontalGradient(listOf(Color(0xFF29212A), Color(0xFF17151B))))
-                            .border(1.dp, Gold.copy(alpha = .18f), RoundedCornerShape(16.dp))
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AlbumArtwork(selected, Modifier.size(58.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(selected.title, color = Parchment, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(selected.artist, color = Ash, fontSize = 11.sp, maxLines = 1)
-                            Text("APERÇU DE LECTEUR", color = Gold, fontSize = 8.sp, letterSpacing = 1.5.sp)
+                        Spacer(Modifier.height(12.dp))
+                        Text("Faites glisser les pochettes pour parcourir votre collection",color=Parchment.copy(alpha=.7f),fontSize=10.sp)
+                        Spacer(Modifier.height(15.dp))
+                        AlbumShelf(filtered,selected){album->selected=album;openedAlbum=album}
+                        Spacer(Modifier.height(27.dp))
+                        Row(verticalAlignment=Alignment.CenterVertically) {
+                            Text("CABINES D'ÉCOUTE",color=Gold,fontSize=10.sp,letterSpacing=3.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+                            Text("À DÉCOUVRIR",color=Ash,fontSize=8.sp,letterSpacing=1.5.sp)
                         }
-                        Icon(Icons.Default.PlayArrow, contentDescription = "Lecture (visuel)", tint = Gold, modifier = Modifier.size(34.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                            ArchiveTile("Post-rock","Paysages sonores",Icons.Default.Landscape,Modifier.weight(1f))
+                            ArchiveTile("Atmosphères","Lents & immersifs",Icons.Default.Waves,Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(24.dp))
+                        Text("EN CE MOMENT",color=Gold,fontSize=10.sp,letterSpacing=3.sp,fontWeight=FontWeight.Bold)
+                        Spacer(Modifier.height(10.dp))
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xD9141012)).border(1.dp,Gold.copy(alpha=.25f),RoundedCornerShape(16.dp)).clickable{openedAlbum=selected}.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
+                            AlbumArtwork(selected,Modifier.size(56.dp));Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(selected.title,color=Parchment,fontSize=12.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                Text(selected.artist,color=Ash,fontSize=10.sp)
+                            }
+                            Icon(Icons.Default.GraphicEq,null,tint=Gold,modifier=Modifier.size(25.dp))
+                        }
+                        Spacer(Modifier.height(20.dp))
                     }
-                    Spacer(Modifier.height(22.dp))
-                }
-
-                Row(
-                    Modifier.fillMaxWidth().background(Color(0xFF100F14)).border(width = 1.dp, color = Gold.copy(alpha = .12f), shape = RoundedCornerShape(0.dp)).padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    NavItem(Icons.Default.Home, "Accueil", activeTab == 0) { activeTab = 0 }
-                    NavItem(Icons.Default.Explore, "Découvrir", activeTab == 1) { activeTab = 1 }
-                    NavItem(Icons.Default.LibraryMusic, "Archives", activeTab == 2) { activeTab = 2 }
-                    NavItem(Icons.Default.Settings, "Réglages", activeTab == 3) { activeTab = 3 }
+                    Row(Modifier.fillMaxWidth().background(Color(0xF20C0A0C)).border(1.dp,Gold.copy(alpha=.15f)).padding(vertical=10.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
+                        NavItem(Icons.Default.Home,"Maison",activeTab==0){activeTab=0}
+                        NavItem(Icons.Default.Explore,"Explorer",activeTab==1){activeTab=1}
+                        NavItem(Icons.Default.LibraryMusic,"Archives",activeTab==2){activeTab=2}
+                        NavItem(Icons.Default.Settings,"Réglages",activeTab==3){activeTab=3}
+                    }
                 }
             }
+            AnimatedVisibility(visible=openedAlbum!=null,enter=fadeIn(tween(260))+slideInVertically(initialOffsetY={it/5},animationSpec=tween(420,easing=FastOutSlowInEasing)),exit=fadeOut(tween(180))+slideOutVertically(targetOffsetY={it/8},animationSpec=tween(220))) {
+                openedAlbum?.let{album->AlbumRoomScreen(album,{openedAlbum=null},playingTrack){playingTrack=it}}
             }
         }
     }
@@ -257,72 +192,42 @@ private fun SectionHeading(title: String, detail: String) {
 }
 
 @Composable
-private fun AlbumShelf(items: List<Album>, selected: Album, onSelect: (Album) -> Unit) {
+private fun AlbumShelf(items:List<Album>,selected:Album,onSelect:(Album)->Unit) {
+    val scroll=rememberScrollState()
     Column {
-        // The horizontal scroll is intentionally the main interaction: slide the records
-        // from left to right, like browsing sleeves on a real listening-room shelf.
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            items.forEachIndexed { index, album ->
-                val focused = album == selected
-                val sleeveScale by animateFloatAsState(
-                    targetValue = if (focused) 1f else .94f,
-                    animationSpec = tween(durationMillis = 420),
-                    label = "sleeve-scale"
-                )
-                val sleeveTilt by animateFloatAsState(
-                    targetValue = if (focused) 0f else -2.2f,
-                    animationSpec = tween(durationMillis = 420),
-                    label = "sleeve-tilt"
-                )
-                Column(
-                    Modifier.width(188.dp).clickable { onSelect(album) }
-                        .graphicsLayer {
-                            scaleX = sleeveScale
-                            scaleY = sleeveScale
-                            rotationZ = sleeveTilt
-                            shadowElevation = if (focused) 22f else 7f
-                        },
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    Box(
-                        Modifier.fillMaxWidth().height(190.dp)
-                            .background(Color(0xFF1B1110), RoundedCornerShape(5.dp))
-                            .border(if (focused) 2.dp else 1.dp, if (focused) Gold.copy(alpha = .8f) else Gold.copy(alpha = .24f), RoundedCornerShape(5.dp))
-                            .padding(horizontal = 5.dp, vertical = 5.dp)
-                    ) {
-                        AlbumArtwork(album, Modifier.fillMaxSize())
-                        Box(
-                            Modifier.fillMaxSize().background(
-                                Brush.radialGradient(
-                                    colors = listOf(Gold.copy(alpha = if (focused) .30f else .07f), Color.Transparent),
-                                    radius = if (focused) 440f else 300f
-                                )
-                            )
-                        )
-                        if (focused) {
-                            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp)
-                                .background(Brush.horizontalGradient(listOf(Color.Transparent, Gold, Color.Transparent))))
+        Box(Modifier.fillMaxWidth().height(292.dp)) {
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xB52D1B17),Color(0xD4110D0F),Color(0xF0060506)))))
+            Box(Modifier.fillMaxWidth().height(110.dp).background(Brush.horizontalGradient(listOf(Color.Transparent,Color(0x557C4B2D),Color.Transparent))))
+            Row(Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(top=8.dp).horizontalScroll(scroll),horizontalArrangement=Arrangement.spacedBy(13.dp),verticalAlignment=Alignment.Bottom) {
+                Spacer(Modifier.width(5.dp))
+                items.forEachIndexed{index,album->
+                    val focused=album==selected
+                    val scale by animateFloatAsState(if(focused)1.04f else .91f,spring(dampingRatio=.72f,stiffness=260f),label="record-scale")
+                    val tilt by animateFloatAsState(if(focused)0f else if(index%2==0)2.8f else -2.8f,spring(dampingRatio=.78f),label="record-tilt")
+                    val lift by animateDpAsState(if(focused)0.dp else 14.dp,spring(dampingRatio=.72f),label="record-lift")
+                    Column(Modifier.width(174.dp).padding(bottom=lift).graphicsLayer{scaleX=scale;scaleY=scale;rotationZ=tilt;shadowElevation=if(focused)28f else 10f;cameraDistance=18f*density}.clickable{onSelect(album)},horizontalAlignment=Alignment.Start) {
+                        Box(Modifier.fillMaxWidth().height(196.dp).background(Color(0xFF1A1110),RoundedCornerShape(4.dp)).border(if(focused)2.dp else 1.dp,if(focused)Gold else Gold.copy(alpha=.28f),RoundedCornerShape(4.dp)).padding(5.dp)) {
+                            AlbumArtwork(album,Modifier.fillMaxSize())
+                            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0x55FFFFFF),Color.Transparent,Color(0x66000000)))))
+                            if(focused)Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().height(3.dp).background(Brush.horizontalGradient(listOf(Color.Transparent,Gold,Color.Transparent))))
                         }
+                        Spacer(Modifier.height(9.dp))
+                        Text(album.title,color=if(focused)Parchment else Parchment.copy(alpha=.78f),fontSize=12.sp,fontWeight=FontWeight.SemiBold,maxLines=2,minLines=2,overflow=TextOverflow.Ellipsis)
+                        Text(album.artist,color=Ash,fontSize=9.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                     }
-                    Spacer(Modifier.height(10.dp))
-                    Text(album.title, color = if (album == selected) Parchment else Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
-                    Text(album.artist, color = Ash, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+                Spacer(Modifier.width(5.dp))
+            }
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(25.dp).background(Brush.verticalGradient(listOf(Color(0xFFD0A06A),Color(0xFF85512F),Color(0xFF29170F))))) {
+                Box(Modifier.fillMaxWidth().height(2.dp).background(Color(0xFFFFD59A).copy(alpha=.8f)))
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(6.dp).background(Color.Black.copy(alpha=.65f)))
             }
         }
-        // Deep wooden shelf: fascia, edge highlight and shadow.
-        Box(Modifier.fillMaxWidth().height(19.dp).background(
-            Brush.verticalGradient(listOf(Color(0xFFB18456), Color(0xFF6A4229), Color(0xFF28170F)))
-        )) {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFE2B77C).copy(alpha = .65f)))
-            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp).background(Color.Black.copy(alpha = .55f)))
+        Spacer(Modifier.height(7.dp))
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {
+            Icon(Icons.Default.Swipe,null,tint=Gold.copy(alpha=.75f),modifier=Modifier.size(14.dp));Spacer(Modifier.width(6.dp))
+            Text("GLISSEZ POUR EXPLORER  ·  TOUCHEZ POUR ÉCOUTER",color=Gold.copy(alpha=.78f),fontSize=7.sp,letterSpacing=1.2.sp)
         }
-        Box(Modifier.fillMaxWidth().height(7.dp).background(Color(0xFF050405)))
-        Spacer(Modifier.height(4.dp))
-        Text("‹  FAITES DÉFILER LES POCHETTES  ›", color = Gold.copy(alpha = .7f), fontSize = 8.sp, letterSpacing = 2.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
     }
 }
 
