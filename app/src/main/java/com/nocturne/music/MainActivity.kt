@@ -4,11 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,18 +21,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Ink = Color(0xFF09090D)
-private val Panel = Color(0xFF171720)
-private val Muted = Color(0xFF9A98A8)
+private val Night = Color(0xFF08080B)
+private val Stone = Color(0xFF17151A)
+private val Gold = Color(0xFFC5A875)
+private val Parchment = Color(0xFFE8DDC9)
+private val Ash = Color(0xFFA5A0A8)
+
+private data class Album(val title: String, val artist: String, val tint: Color, val symbol: String)
 private val albums = listOf(
-    Triple("The Earth Is Not a Cold Dead Place", "Explosions in the Sky", Color(0xFF6E7164)),
-    Triple("Ágætis byrjun", "Sigur Rós", Color(0xFF8C7770)),
-    Triple("Departure Songs", "We Lost The Sea", Color(0xFF485B68)),
-    Triple("All of a Sudden I Miss Everyone", "Explosions in the Sky", Color(0xFF6A5361)),
-    Triple("Young Mountain", "This Will Destroy You", Color(0xFF77705B))
+    Album("The Earth Is Not a Cold Dead Place", "Explosions in the Sky", Color(0xFF777968), "✦"),
+    Album("Ágætis byrjun", "Sigur Rós", Color(0xFF987C75), "☾"),
+    Album("Departure Songs", "We Lost The Sea", Color(0xFF526875), "✧"),
+    Album("All of a Sudden I Miss Everyone", "Explosions in the Sky", Color(0xFF705665), "✦"),
+    Album("Young Mountain", "This Will Destroy You", Color(0xFF82785F), "⌁")
 )
 
 class MainActivity : ComponentActivity() {
@@ -44,59 +51,198 @@ class MainActivity : ComponentActivity() {
 fun NocturneApp() {
     var query by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf(albums.first()) }
-    val filtered = albums.filter { (it.first + it.second).contains(query, true) }
-    MaterialTheme(colorScheme = darkColorScheme(background = Ink, surface = Panel, primary = Color(0xFFC2A878))) {
-        Box(Modifier.fillMaxSize().background(Ink)) {
-            Column(Modifier.fillMaxSize().padding(horizontal = 22.dp)) {
-                Spacer(Modifier.height(48.dp))
-                Text("NOCTURNE", color = Color(0xFFE8DDC9), fontSize = 13.sp, letterSpacing = 5.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(28.dp))
-                Text("Là où la musique\nprend forme.", color = Color.White, fontSize = 31.sp, lineHeight = 37.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(24.dp))
-                OutlinedTextField(
-                    value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Rechercher un album ou un artiste…", color = Muted) },
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = Muted) },
-                    singleLine = true, shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Panel, focusedBorderColor = Color(0xFFC2A878))
-                )
-                Spacer(Modifier.height(30.dp))
-                Text("VOTRE COLLECTION", color = Color(0xFFC2A878), fontSize = 11.sp, letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(16.dp))
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    filtered.forEach { album ->
-                        Column(Modifier.width(154.dp).clickable { selected = album }) {
-                            Box(Modifier.fillMaxWidth().height(154.dp).clip(RoundedCornerShape(8.dp)).background(Brush.linearGradient(listOf(album.third, Color(0xFF17131D), Color.Black))), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.GraphicEq, null, tint = Color.White.copy(alpha = .72f), modifier = Modifier.size(48.dp))
-                            }
-                            Spacer(Modifier.height(10.dp))
-                            Text(album.first, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 2)
-                            Text(album.second, color = Muted, fontSize = 11.sp, maxLines = 1)
+    var activeTab by remember { mutableStateOf(0) }
+    val filtered = albums.filter { (it.title + it.artist).contains(query, true) }
+
+    MaterialTheme(colorScheme = darkColorScheme(background = Night, surface = Stone, primary = Gold)) {
+        Box(Modifier.fillMaxSize().background(Night)) {
+            // Subtle cathedral-like ambient glow behind the library.
+            Box(
+                Modifier.fillMaxWidth().height(390.dp)
+                    .background(Brush.verticalGradient(listOf(Color(0xFF29212A), Color(0xFF111015), Night)))
+            )
+            Column(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier.weight(1f).verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                ) {
+                    Spacer(Modifier.height(38.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("N O C T U R N E", color = Parchment, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
+                            Text("THE PRIVATE MUSIC ARCHIVE", color = Gold.copy(alpha = .8f), fontSize = 8.sp, letterSpacing = 2.sp)
                         }
+                        Icon(Icons.Default.DarkMode, contentDescription = null, tint = Gold, modifier = Modifier.size(22.dp))
                     }
+
+                    Spacer(Modifier.height(30.dp))
+                    // Monumental gothic portal / hero panel.
+                    Box(
+                        Modifier.fillMaxWidth().height(208.dp)
+                            .clip(RoundedCornerShape(topStart = 100.dp, topEnd = 100.dp, bottomStart = 12.dp, bottomEnd = 12.dp))
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color(0xFF4A3940), Color(0xFF211A24), Color(0xFF100F14))
+                                )
+                            )
+                            .border(1.dp, Gold.copy(alpha = .28f), RoundedCornerShape(topStart = 100.dp, topEnd = 100.dp, bottomStart = 12.dp, bottomEnd = 12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+                            repeat(3) {
+                                Box(Modifier.width(1.dp).fillMaxHeight(.72f).background(Gold.copy(alpha = .18f)))
+                            }
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("✧", color = Gold, fontSize = 28.sp)
+                            Text("LÀ OÙ LA MUSIQUE", color = Parchment, fontSize = 12.sp, letterSpacing = 3.sp, fontWeight = FontWeight.Medium)
+                            Text("PREND FORME", color = Parchment, fontSize = 24.sp, letterSpacing = 2.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Entrez dans votre bibliothèque", color = Ash, fontSize = 11.sp)
+                        }
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Gold.copy(alpha = .55f), modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp).size(18.dp))
+                    }
+
+                    Spacer(Modifier.height(22.dp))
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Rechercher un album ou un artiste…", color = Ash) },
+                        leadingIcon = { Icon(Icons.Default.Search, null, tint = Gold) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = Gold.copy(alpha = .22f),
+                            focusedBorderColor = Gold,
+                            unfocusedContainerColor = Color(0xFF100F14),
+                            focusedContainerColor = Color(0xFF100F14),
+                            cursorColor = Gold
+                        )
+                    )
+
+                    Spacer(Modifier.height(28.dp))
+                    SectionHeading("VOTRE COLLECTION", "05 ALBUMS")
+                    Spacer(Modifier.height(14.dp))
+                    AlbumShelf(filtered, selected) { selected = it }
+
+                    Spacer(Modifier.height(28.dp))
+                    SectionHeading("LES ARCHIVES", "SÉLECTION")
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ArchiveTile("Post-rock", "Paysages sonores", Icons.Default.Landscape, Modifier.weight(1f))
+                        ArchiveTile("Atmosphères", "Lents & immersifs", Icons.Default.Waves, Modifier.weight(1f))
+                    }
+
+                    Spacer(Modifier.height(26.dp))
+                    SectionHeading("EN ÉCOUTE", "LECTEUR")
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                            .background(Brush.horizontalGradient(listOf(Color(0xFF29212A), Color(0xFF17151B))))
+                            .border(1.dp, Gold.copy(alpha = .18f), RoundedCornerShape(16.dp))
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AlbumArtwork(selected, Modifier.size(58.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(selected.title, color = Parchment, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(selected.artist, color = Ash, fontSize = 11.sp, maxLines = 1)
+                            Text("APERÇU DE LECTEUR", color = Gold, fontSize = 8.sp, letterSpacing = 1.5.sp)
+                        }
+                        Icon(Icons.Default.PlayArrow, contentDescription = "Lecture (visuel)", tint = Gold, modifier = Modifier.size(34.dp))
+                    }
+                    Spacer(Modifier.height(22.dp))
                 }
-                Spacer(Modifier.height(30.dp))
-                Text("EN ÉCOUTE", color = Color(0xFFC2A878), fontSize = 11.sp, letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(12.dp))
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Panel).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)).background(selected.third), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.MusicNote, null, tint = Color.White)
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(selected.first, color = Color.White, fontSize = 12.sp, maxLines = 1)
-                        Text(selected.second, color = Muted, fontSize = 11.sp)
-                    }
-                    Icon(Icons.Default.PlayArrow, null, tint = Color(0xFFC2A878), modifier = Modifier.size(30.dp))
-                }
-                Spacer(Modifier.weight(1f))
-                Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.SpaceAround) {
-                    Icon(Icons.Default.Home, null, tint = Color(0xFFC2A878))
-                    Icon(Icons.Default.Explore, null, tint = Muted)
-                    Icon(Icons.Default.LibraryMusic, null, tint = Muted)
-                    Icon(Icons.Default.Settings, null, tint = Muted)
+
+                Row(
+                    Modifier.fillMaxWidth().background(Color(0xFF100F14)).border(width = 1.dp, color = Gold.copy(alpha = .12f), shape = RoundedCornerShape(0.dp)).padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    NavItem(Icons.Default.Home, "Accueil", activeTab == 0) { activeTab = 0 }
+                    NavItem(Icons.Default.Explore, "Découvrir", activeTab == 1) { activeTab = 1 }
+                    NavItem(Icons.Default.LibraryMusic, "Archives", activeTab == 2) { activeTab = 2 }
+                    NavItem(Icons.Default.Settings, "Réglages", activeTab == 3) { activeTab = 3 }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SectionHeading(title: String, detail: String) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = Gold, fontSize = 10.sp, letterSpacing = 2.5.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        Text(detail, color = Ash.copy(alpha = .7f), fontSize = 8.sp, letterSpacing = 1.5.sp)
+    }
+}
+
+@Composable
+private fun AlbumShelf(items: List<Album>, selected: Album, onSelect: (Album) -> Unit) {
+    Column {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            items.forEach { album ->
+                Column(Modifier.width(142.dp).clickable { onSelect(album) }) {
+                    AlbumArtwork(album, Modifier.fillMaxWidth().height(142.dp))
+                    Spacer(Modifier.height(9.dp))
+                    Text(album.title, color = if (album == selected) Parchment else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
+                    Text(album.artist, color = Ash, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+        // A wooden shelf lip under the album row.
+        Box(
+            Modifier.fillMaxWidth().height(12.dp)
+                .background(Brush.verticalGradient(listOf(Color(0xFF76553A), Color(0xFF302019))))
+                .border(1.dp, Color(0xFF9A7650).copy(alpha = .35f), RoundedCornerShape(2.dp))
+        )
+        Box(Modifier.fillMaxWidth().height(4.dp).background(Color(0xFF050405)))
+    }
+}
+
+@Composable
+private fun AlbumArtwork(album: Album, modifier: Modifier = Modifier) {
+    Box(
+        modifier.clip(RoundedCornerShape(6.dp))
+            .background(Brush.linearGradient(listOf(album.tint, Color(0xFF29212A), Color(0xFF08080B))))
+            .border(1.dp, Gold.copy(alpha = .25f), RoundedCornerShape(6.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text(album.symbol, color = Gold.copy(alpha = .9f), fontSize = 32.sp)
+            Spacer(Modifier.height(3.dp))
+            Box(Modifier.width(28.dp).height(1.dp).background(Gold.copy(alpha = .65f)))
+            Text("NOCTURNE", color = Parchment.copy(alpha = .8f), fontSize = 7.sp, letterSpacing = 2.sp)
+        }
+    }
+}
+
+@Composable
+private fun ArchiveTile(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier) {
+    Row(
+        modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFF19161D))
+            .border(1.dp, Gold.copy(alpha = .16f), RoundedCornerShape(12.dp)).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = Gold, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text(title, color = Parchment, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = Ash, fontSize = 9.sp)
+        }
+    }
+}
+
+@Composable
+private fun NavItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+    Column(Modifier.clickable(onClick = onClick).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(icon, contentDescription = label, tint = if (selected) Gold else Ash, modifier = Modifier.size(21.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(label, color = if (selected) Gold else Ash, fontSize = 9.sp)
     }
 }
