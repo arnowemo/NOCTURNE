@@ -176,7 +176,7 @@ class MainActivity : ComponentActivity() {
     private fun connectSpotifyRemote() {
         if (spotifyRemote != null) return
         spotifyAuthStatus = "Autorisation du lecteur Spotify…"
-        val params = ConnectionParams.Builder(BuildConfig.SPOTIFY_CLIENT_ID).setRedirectUri(BuildConfig.SPOTIFY_REDIRECT_URI).showAuthView(true).build()
+        val params = ConnectionParams.Builder(BuildConfig.SPOTIFY_CLIENT_ID).setRedirectUri("nocturne-remote://callback").showAuthView(true).build()
         SpotifyAppRemote.connect(this, params, object : Connector.ConnectionListener {
             override fun onConnected(appRemote: SpotifyAppRemote) {
                 spotifyRemote = appRemote
