@@ -152,6 +152,11 @@ fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin
     var spotifyMessage by remember { mutableStateOf("Connectez Spotify pour afficher vos vrais albums") }
     var loadingCollection by remember { mutableStateOf(false) }
     var roomTracks by remember { mutableStateOf<List<AlbumTrack>>(emptyList()) }
+    var catalogMode by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<Album>>(emptyList()) }
+    var searchMessage by remember { mutableStateOf("") }
+    var searching by remember { mutableStateOf(false) }
     LaunchedEffect(openedAlbum?.spotifyId, spotifyToken) {
         val current = openedAlbum
         if (current?.spotifyId != null && spotifyToken != null) { roomTracks = emptyList(); try { roomTracks = loadAlbumTracks(spotifyToken, current.spotifyId) } catch (_: Exception) { roomTracks = emptyList() } }
