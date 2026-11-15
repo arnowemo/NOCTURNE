@@ -284,11 +284,24 @@ private fun AlbumRoomScreen(album: Album, onBack: () -> Unit, playingTrack: Int,
         Box(Modifier.fillMaxWidth().height(350.dp).clip(RoundedCornerShape(26.dp)).background(Brush.radialGradient(listOf(Color(0xFF69463F).copy(alpha=pulse),Color(0xFF211820),Night))).border(1.dp, Gold.copy(alpha=.38f), RoundedCornerShape(26.dp)), contentAlignment = Alignment.Center) {
             Box(Modifier.size(292.dp).graphicsLayer { rotationZ = rotation }.background(Brush.radialGradient(listOf(Color(0xFF38343A),Color(0xFF141217),Color(0xFF050507)), radius=520f), RoundedCornerShape(50)).border(1.dp, Color.White.copy(alpha=.12f), RoundedCornerShape(50)))
             Box(Modifier.size(292.dp).graphicsLayer { rotationZ = rotation }.padding(12.dp).border(1.dp, Color.White.copy(alpha=.10f), RoundedCornerShape(50)))
-            Box(Modifier.size(90.dp).clip(RoundedCornerShape(50)).background(Brush.linearGradient(listOf(album.tint,Color(0xFF17121A)))).border(2.dp,Gold.copy(alpha=.65f),RoundedCornerShape(50)),contentAlignment=Alignment.Center) {
-                Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                    Text(album.symbol,color=Gold,fontSize=30.sp)
-                    Text("NOCTURNE",color=Parchment,fontSize=6.sp,letterSpacing=1.5.sp)
+            Box(Modifier.size(292.dp).graphicsLayer { rotationZ = rotation }.padding(34.dp).border(.7.dp, Color.White.copy(alpha=.10f), RoundedCornerShape(50)))
+            Box(Modifier.size(292.dp).graphicsLayer { rotationZ = rotation }.padding(52.dp).border(.7.dp, Color.White.copy(alpha=.08f), RoundedCornerShape(50)))
+            Box(Modifier.size(292.dp).graphicsLayer { rotationZ = rotation }.padding(70.dp).border(.7.dp, Color.White.copy(alpha=.08f), RoundedCornerShape(50)))
+            Box(Modifier.size(104.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                .background(Color(0xFF17121A))
+                .border(2.dp,Gold.copy(alpha=.85f),androidx.compose.foundation.shape.CircleShape)
+                .padding(5.dp),contentAlignment=Alignment.Center) {
+                if (album.imageUrl != null) {
+                    AsyncImage(model=album.imageUrl,contentDescription="Macaron du vinyle : ${album.title}",
+                        contentScale=ContentScale.Crop,
+                        modifier=Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape))
+                } else {
+                    Box(Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(Brush.linearGradient(listOf(album.tint,Color(0xFF17121A)))),
+                        contentAlignment=Alignment.Center) { Text(album.symbol,color=Gold,fontSize=30.sp) }
                 }
+                Box(Modifier.size(7.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Night).border(1.dp,Gold,androidx.compose.foundation.shape.CircleShape))
             }
             Box(Modifier.align(Alignment.TopCenter).padding(top=18.dp).width(90.dp).height(2.dp).background(Brush.horizontalGradient(listOf(Color.Transparent,Gold,Color.Transparent))))
             Box(Modifier.align(Alignment.TopEnd).padding(top=32.dp,end=42.dp).width(112.dp).height(180.dp).graphicsLayer { rotationZ = if(playingTrack>=0) 8f else 0f; transformOrigin=androidx.compose.ui.graphics.TransformOrigin(.88f,.08f) }) {
