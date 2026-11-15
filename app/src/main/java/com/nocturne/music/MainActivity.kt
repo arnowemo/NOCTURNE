@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -26,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -106,7 +108,7 @@ fun NocturneApp() {
                             .border(1.dp, Gold.copy(alpha = .42f), RoundedCornerShape(topStart = 92.dp, topEnd = 92.dp, bottomStart = 14.dp, bottomEnd = 14.dp))
                     ) {
                         AsyncImage(
-                            model = "https://images.unsplash.com/photo-1758405392912-eb488da67a82?auto=format&fit=crop&w=1400&q=85",
+                            model = "https://signalstation.music/assets/hero-bg-Bhv-YTOa.jpg",
                             contentDescription = "Intérieur d'un magasin de vinyles",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
@@ -264,30 +266,45 @@ private fun AlbumShelf(items: List<Album>, selected: Album, onSelect: (Album) ->
             horizontalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             items.forEachIndexed { index, album ->
+                val focused = album == selected
+                val sleeveScale by animateFloatAsState(
+                    targetValue = if (focused) 1f else .94f,
+                    animationSpec = tween(durationMillis = 420),
+                    label = "sleeve-scale"
+                )
+                val sleeveTilt by animateFloatAsState(
+                    targetValue = if (focused) 0f else -2.2f,
+                    animationSpec = tween(durationMillis = 420),
+                    label = "sleeve-tilt"
+                )
                 Column(
-                    Modifier.width(188.dp).clickable { onSelect(album) },
+                    Modifier.width(188.dp).clickable { onSelect(album) }
+                        .graphicsLayer {
+                            scaleX = sleeveScale
+                            scaleY = sleeveScale
+                            rotationZ = sleeveTilt
+                            shadowElevation = if (focused) 22f else 7f
+                        },
                     horizontalAlignment = Alignment.Start
                 ) {
                     Box(
                         Modifier.fillMaxWidth().height(190.dp)
                             .background(Color(0xFF1B1110), RoundedCornerShape(5.dp))
+                            .border(if (focused) 2.dp else 1.dp, if (focused) Gold.copy(alpha = .8f) else Gold.copy(alpha = .24f), RoundedCornerShape(5.dp))
                             .padding(horizontal = 5.dp, vertical = 5.dp)
                     ) {
                         AlbumArtwork(album, Modifier.fillMaxSize())
-                        // warm gallery spotlight over each sleeve
                         Box(
                             Modifier.fillMaxSize().background(
                                 Brush.radialGradient(
-                                    colors = listOf(Gold.copy(alpha = if (album == selected) .20f else .09f), Color.Transparent),
-                                    radius = 360f
+                                    colors = listOf(Gold.copy(alpha = if (focused) .30f else .07f), Color.Transparent),
+                                    radius = if (focused) 440f else 300f
                                 )
                             )
                         )
-                        if (album == selected) {
-                            Box(
-                                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(3.dp)
-                                    .background(Gold.copy(alpha = .9f))
-                            )
+                        if (focused) {
+                            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp)
+                                .background(Brush.horizontalGradient(listOf(Color.Transparent, Gold, Color.Transparent))))
                         }
                     }
                     Spacer(Modifier.height(10.dp))
