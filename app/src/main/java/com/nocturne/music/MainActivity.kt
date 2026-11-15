@@ -1,6 +1,15 @@
 package com.nocturne.music
 
 import android.os.Bundle
+import android.content.Intent
+import com.spotify.sdk.android.auth.AuthorizationClient
+import com.spotify.sdk.android.auth.AuthorizationRequest
+import com.spotify.sdk.android.auth.AuthorizationResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
+import org.json.JSONObject
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.RepeatMode
@@ -49,7 +58,7 @@ private val Gold = Color(0xFFC5A875)
 private val Parchment = Color(0xFFE8DDC9)
 private val Ash = Color(0xFFA5A0A8)
 
-private data class Album(val title: String, val artist: String, val tint: Color, val symbol: String)
+private data class Album(val title: String, val artist: String, val tint: Color, val symbol: String, val imageUrl: String? = null)
 private val albums = listOf(
     Album("The Earth Is Not a Cold Dead Place", "Explosions in the Sky", Color(0xFF777968), "✦"),
     Album("Ágætis byrjun", "Sigur Rós", Color(0xFF987C75), "☾"),
@@ -58,18 +67,73 @@ private val albums = listOf(
     Album("Young Mountain", "This Will Destroy You", Color(0xFF82785F), "⌁")
 )
 
+private const val SPOTIFY_REQUEST_CODE = 7301
+
 class MainActivity : ComponentActivity() {
+    private var spotifyToken by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { NocturneApp() }
+        setContent { NocturneApp(spotifyToken = spotifyToken, onSpotifyLogin = { connectSpotify() }) }
+    }
+
+    private fun connectSpotify() {
+        val request = AuthorizationRequest.Builder(
+            BuildConfig.SPOTIFY_CLIENT_ID,
+            AuthorizationResponse.Type.TOKEN,
+            BuildConfig.SPOTIFY_REDIRECT_URI
+        ).setScopes(arrayOf("user-library-read", "user-read-private"))
+            .setShowDialog(true)
+            .build()
+        AuthorizationClient.openLoginActivity(this, SPOTIFY_REQUEST_CODE, request)
+    }
+
+    @Deprecated("Spotify auth library returns its result through this callback")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == SPOTIFY_REQUEST_CODE) {
+            val response = AuthorizationClient.getResponse(resultCode, data)
+            when (response.type) {
+                AuthorizationResponse.Type.TOKEN -> spotifyToken = response.accessToken
+                else -> spotifyToken = null
+            }
+        }
     }
 }
 
 @Composable
-fun NocturneApp() {
+fun NocturneApp(spotifyToken: String?, onSpotifyLogin: () -> Unit) {
     var selected by remember { mutableStateOf(albums.first()) }
+    var collection by remember { mutableStateOf(albums) }
     var openedAlbum by remember { mutableStateOf<Album?>(null) }
     var playingTrack by remember { mutableStateOf(-1) }
+    var spotifyMessage by remember { mutableStateOf("Connectez Spotify pour afficher vos vrais albums") }
+    var loadingCollection by remember { mutableStateOf(false) }
+
+    LaunchedEffect(spotifyToken) {
+        if (spotifyToken != null) {
+            loadingCollection = true
+            spotifyMessage = "Chargement de votre collection Spotify…"
+            try {
+                val fetched = loadSavedAlbums(spotifyToken)
+                if (fetched.isNotEmpty()) {
+                    collection = fetched
+                    selected = fetched.first()
+                    spotifyMessage = "${fetched.size} albums récupérés depuis Spotify"
+                } else {
+                    spotifyMessage = "Aucun album enregistré trouvé sur ce compte"
+                }
+            } catch (e: Exception) {
+                spotifyMessage = "Spotify : ${e.message ?: "impossible de charger la collection"}"
+            } finally {
+                loadingCollection = false
+            }
+        } else {
+            collection = albums
+            spotifyMessage = "Connectez Spotify pour afficher vos vrais albums"
+        }
+    }
+
     MaterialTheme(colorScheme = darkColorScheme(background = Night, surface = Stone, primary = Gold)) {
         Box(Modifier.fillMaxSize().background(Night)) {
             AsyncImage(model="https://images.unsplash.com/photo-1461360228754-6e81c478b882?auto=format&fit=crop&w=1400&q=85",contentDescription=null,contentScale=ContentScale.Crop,modifier=Modifier.fillMaxSize())
@@ -78,16 +142,25 @@ fun NocturneApp() {
             AnimatedVisibility(visible=openedAlbum==null,enter=fadeIn(tween(500)),exit=fadeOut(tween(260))) {
                 Column(Modifier.fillMaxSize().padding(top=30.dp,bottom=24.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceBetween) {
                     Column(Modifier.fillMaxWidth().padding(horizontal=26.dp)) {
-                        Text("N O C T U R N E",color=Parchment,fontSize=13.sp,fontWeight=FontWeight.Bold,letterSpacing=5.sp)
-                        Spacer(Modifier.height(7.dp))
-                        Text("LA COLLECTION PRIVÉE",color=Gold,fontSize=9.sp,letterSpacing=3.sp)
+                        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+                            Column {
+                                Text("N O C T U R N E",color=Parchment,fontSize=13.sp,fontWeight=FontWeight.Bold,letterSpacing=5.sp)
+                                Spacer(Modifier.height(7.dp))
+                                Text("LA COLLECTION PRIVÉE",color=Gold,fontSize=9.sp,letterSpacing=3.sp)
+                            }
+                            TextButton(onClick=onSpotifyLogin) {
+                                Text(if(spotifyToken==null) "CONNECTER SPOTIFY" else "SPOTIFY CONNECTÉ",color=Gold,fontSize=9.sp,letterSpacing=1.sp)
+                            }
+                        }
+                        Text(spotifyMessage,color=Ash,fontSize=9.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                        if(loadingCollection) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=5.dp),color=Gold,trackColor=Stone)
                     }
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Text("Prenez un disque.",color=Parchment,fontSize=27.sp,fontWeight=FontWeight.SemiBold)
                         Spacer(Modifier.height(7.dp))
                         Text("Faites défiler votre collection.",color=Gold.copy(alpha=.82f),fontSize=12.sp,letterSpacing=1.sp)
                     }
-                    AlbumCarousel(items=albums,selected=selected,onSelect={selected=it;openedAlbum=it},onFocus={selected=it})
+                    AlbumCarousel(items=collection,selected=selected,onSelect={selected=it;openedAlbum=it},onFocus={selected=it})
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Row(horizontalArrangement=Arrangement.spacedBy(7.dp),verticalAlignment=Alignment.CenterVertically) {
                             Icon(Icons.Default.Swipe,null,tint=Gold,modifier=Modifier.size(17.dp))
@@ -102,6 +175,35 @@ fun NocturneApp() {
                 openedAlbum?.let{album->AlbumRoomScreen(album,{openedAlbum=null},playingTrack){playingTrack=it}}
             }
         }
+    }
+}
+
+private suspend fun loadSavedAlbums(token: String): List<Album> = withContext(Dispatchers.IO) {
+    val connection = (URL("https://api.spotify.com/v1/me/albums?limit=50").openConnection() as HttpURLConnection)
+    try {
+        connection.requestMethod = "GET"
+        connection.setRequestProperty("Authorization", "Bearer $token")
+        connection.connectTimeout = 15000
+        connection.readTimeout = 15000
+        val code = connection.responseCode
+        val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+        val body = stream.bufferedReader().use { it.readText() }
+        if (code !in 200..299) throw IllegalStateException("erreur API $code")
+        val items = JSONObject(body).optJSONArray("items") ?: return@withContext emptyList()
+        val colors = listOf(Color(0xFF777968), Color(0xFF987C75), Color(0xFF526875), Color(0xFF705665), Color(0xFF82785F))
+        val symbols = listOf("✦", "☾", "✧", "✦", "⌁")
+        buildList {
+            for (i in 0 until items.length()) {
+                val album = items.getJSONObject(i).getJSONObject("album")
+                val images = album.optJSONArray("images")
+                val image = if (images != null && images.length() > 0) images.getJSONObject(0).optString("url").takeIf { it.isNotBlank() } else null
+                val artists = album.optJSONArray("artists")
+                val artist = if (artists != null && artists.length() > 0) artists.getJSONObject(0).optString("name") else "Artiste inconnu"
+                add(Album(album.optString("name", "Album sans titre"), artist, colors[i % colors.size], symbols[i % symbols.size], image))
+            }
+        }
+    } finally {
+        connection.disconnect()
     }
 }
 
@@ -277,11 +379,16 @@ private fun AlbumArtwork(album: Album, modifier: Modifier = Modifier) {
             .border(1.dp, Gold.copy(alpha = .25f), RoundedCornerShape(6.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text(album.symbol, color = Gold.copy(alpha = .9f), fontSize = 32.sp)
-            Spacer(Modifier.height(3.dp))
-            Box(Modifier.width(28.dp).height(1.dp).background(Gold.copy(alpha = .65f)))
-            Text("NOCTURNE", color = Parchment.copy(alpha = .8f), fontSize = 7.sp, letterSpacing = 2.sp)
+        if (album.imageUrl != null) {
+            AsyncImage(model = album.imageUrl, contentDescription = "Pochette de ${album.title}", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x55000000)))))
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text(album.symbol, color = Gold.copy(alpha = .9f), fontSize = 32.sp)
+                Spacer(Modifier.height(3.dp))
+                Box(Modifier.width(28.dp).height(1.dp).background(Gold.copy(alpha = .65f)))
+                Text("NOCTURNE", color = Parchment.copy(alpha = .8f), fontSize = 7.sp, letterSpacing = 2.sp)
+            }
         }
     }
 }
