@@ -214,6 +214,17 @@ fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin
                                 Text(if(spotifyToken==null) "CONNECTER SPOTIFY" else "SPOTIFY CONNECTÉ",color=Gold,fontSize=9.sp,letterSpacing=1.sp)
                             }
                         }
+                        if (spotifyToken != null) {
+                            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                                FilterChip(selected=!catalogMode,onClick={catalogMode=false;searchQuery=""},label={Text("MA COLLECTION",fontSize=8.sp)})
+                                FilterChip(selected=catalogMode,onClick={catalogMode=true},label={Text("CATALOGUE",fontSize=8.sp)})
+                            }
+                            if (catalogMode) {
+                                OutlinedTextField(value=searchQuery,onValueChange={searchQuery=it},modifier=Modifier.fillMaxWidth(),singleLine=true,placeholder={Text("Album ou artiste…")},leadingIcon={Icon(Icons.Default.Search,null,tint=Gold)})
+                                if (searching) LinearProgressIndicator(Modifier.fillMaxWidth(),color=Gold)
+                                Text(searchMessage,color=Ash,fontSize=8.sp)
+                            }
+                        }
                         Text(spotifyMessage,color=Ash,fontSize=9.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                         Text(spotifyAuthStatus,color=Gold.copy(alpha=.85f),fontSize=8.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
                         if(loadingCollection) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=5.dp),color=Gold,trackColor=Stone)
