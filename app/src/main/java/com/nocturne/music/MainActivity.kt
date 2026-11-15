@@ -5,6 +5,9 @@ import android.content.Intent
 import com.spotify.sdk.android.auth.AuthorizationClient
 import com.spotify.sdk.android.auth.AuthorizationRequest
 import com.spotify.sdk.android.auth.AuthorizationResponse
+import com.spotify.android.appremote.api.ConnectionParams
+import com.spotify.android.appremote.api.Connector
+import com.spotify.android.appremote.api.SpotifyAppRemote
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -58,7 +61,8 @@ private val Gold = Color(0xFFC5A875)
 private val Parchment = Color(0xFFE8DDC9)
 private val Ash = Color(0xFFA5A0A8)
 
-private data class Album(val title: String, val artist: String, val tint: Color, val symbol: String, val imageUrl: String? = null)
+private data class AlbumTrack(val name: String, val uri: String)
+private data class Album(val title: String, val artist: String, val tint: Color, val symbol: String, val imageUrl: String? = null, val spotifyId: String? = null, val spotifyUri: String? = null)
 private val albums = listOf(
     Album("The Earth Is Not a Cold Dead Place", "Explosions in the Sky", Color(0xFF777968), "✦"),
     Album("Ágætis byrjun", "Sigur Rós", Color(0xFF987C75), "☾"),
@@ -72,10 +76,12 @@ private const val SPOTIFY_REQUEST_CODE = 7301
 class MainActivity : ComponentActivity() {
     private var spotifyToken by mutableStateOf<String?>(null)
     private var spotifyAuthStatus by mutableStateOf("Connexion non démarrée")
+    private var spotifyRemote: SpotifyAppRemote? = null
+    private var pendingSpotifyUri: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { NocturneApp(spotifyToken = spotifyToken, spotifyAuthStatus = spotifyAuthStatus, onSpotifyLogin = { connectSpotify() }) }
+        setContent { NocturneApp(spotifyToken = spotifyToken, spotifyAuthStatus = spotifyAuthStatus, onSpotifyLogin = { connectSpotify() }, onPlaySpotifyUri = { playSpotifyUri(it) }, onPauseSpotify = { spotifyRemote?.playerApi?.pause() }) }
     }
 
     private fun connectSpotify() {
@@ -100,23 +106,52 @@ class MainActivity : ComponentActivity() {
         if (requestCode == SPOTIFY_REQUEST_CODE) {
             val response = AuthorizationClient.getResponse(resultCode, data)
             when (response.type) {
-                AuthorizationResponse.Type.TOKEN -> { spotifyToken = response.accessToken; spotifyAuthStatus = "Connexion réussie" }
+                AuthorizationResponse.Type.TOKEN -> { spotifyToken = response.accessToken; spotifyAuthStatus = "Connexion réussie"; connectSpotifyRemote() }
                 AuthorizationResponse.Type.ERROR -> { spotifyToken = null; spotifyAuthStatus = "Erreur Spotify : ${response.error ?: "non précisée"}" }
                 AuthorizationResponse.Type.CANCELLED -> { spotifyToken = null; spotifyAuthStatus = "Connexion annulée" }
                 else -> { spotifyToken = null; spotifyAuthStatus = "Réponse Spotify inattendue : ${response.type}" }
             }
         }
     }
+
+    private fun connectSpotifyRemote() {
+        if (spotifyRemote != null) return
+        spotifyAuthStatus = "Autorisation du lecteur Spotify…"
+        val params = ConnectionParams.Builder(BuildConfig.SPOTIFY_CLIENT_ID).setRedirectUri(BuildConfig.SPOTIFY_REDIRECT_URI).showAuthView(true).build()
+        SpotifyAppRemote.connect(this, params, object : Connector.ConnectionListener {
+            override fun onConnected(appRemote: SpotifyAppRemote) {
+                spotifyRemote = appRemote
+                spotifyAuthStatus = "Spotify prêt pour la lecture"
+                pendingSpotifyUri?.let { uri -> appRemote.playerApi.play(uri); pendingSpotifyUri = null }
+            }
+            override fun onFailure(error: Throwable) { spotifyAuthStatus = "Lecteur Spotify indisponible : " + (error.message ?: error.javaClass.simpleName) }
+        })
+    }
+    private fun playSpotifyUri(uri: String) {
+        val remote = spotifyRemote
+        if (remote != null) remote.playerApi.play(uri) else { pendingSpotifyUri = uri; connectSpotifyRemote() }
+    }
+    override fun onStop() {
+        super.onStop()
+        spotifyRemote?.let { SpotifyAppRemote.disconnect(it) }
+        spotifyRemote = null
+    }
 }
 
 @Composable
-fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin: () -> Unit) {
+fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin: () -> Unit, onPlaySpotifyUri: (String) -> Unit, onPauseSpotify: () -> Unit) {
     var selected by remember { mutableStateOf(albums.first()) }
     var collection by remember { mutableStateOf(albums) }
     var openedAlbum by remember { mutableStateOf<Album?>(null) }
     var playingTrack by remember { mutableStateOf(-1) }
     var spotifyMessage by remember { mutableStateOf("Connectez Spotify pour afficher vos vrais albums") }
     var loadingCollection by remember { mutableStateOf(false) }
+    var roomTracks by remember { mutableStateOf<List<AlbumTrack>>(emptyList()) }
+    LaunchedEffect(openedAlbum?.spotifyId, spotifyToken) {
+        val current = openedAlbum
+        if (current?.spotifyId != null && spotifyToken != null) { roomTracks = emptyList(); try { roomTracks = loadAlbumTracks(spotifyToken, current.spotifyId) } catch (_: Exception) { roomTracks = emptyList() } }
+        else roomTracks = emptyList()
+    }
 
     LaunchedEffect(spotifyToken) {
         if (spotifyToken != null) {
@@ -181,7 +216,7 @@ fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin
                 }
             }
             AnimatedVisibility(visible=openedAlbum!=null,enter=fadeIn(tween(300))+slideInVertically(initialOffsetY={it/6},animationSpec=tween(450,easing=FastOutSlowInEasing)),exit=fadeOut(tween(200))) {
-                openedAlbum?.let{album->AlbumRoomScreen(album,{openedAlbum=null},playingTrack){playingTrack=it}}
+                openedAlbum?.let{album->AlbumRoomScreen(album, roomTracks, {openedAlbum=null}, playingTrack, { playingTrack=it }, onPlaySpotifyUri, onPauseSpotify)}
             }
         }
     }
@@ -208,7 +243,8 @@ private suspend fun loadSavedAlbums(token: String): List<Album> = withContext(Di
                 val image = if (images != null && images.length() > 0) images.getJSONObject(0).optString("url").takeIf { it.isNotBlank() } else null
                 val artists = album.optJSONArray("artists")
                 val artist = if (artists != null && artists.length() > 0) artists.getJSONObject(0).optString("name") else "Artiste inconnu"
-                add(Album(album.optString("name", "Album sans titre"), artist, colors[i % colors.size], symbols[i % symbols.size], image))
+                val albumId = album.optString("id").takeIf { it.isNotBlank() }
+                add(Album(album.optString("name", "Album sans titre"), artist, colors[i % colors.size], symbols[i % symbols.size], image, albumId, albumId?.let { "spotify:album:" + it }))
             }
         }
     } finally {
@@ -265,9 +301,21 @@ private fun AlbumCarousel(items:List<Album>,selected:Album,onSelect:(Album)->Uni
     }
 }
 
+private suspend fun loadAlbumTracks(token: String, albumId: String): List<AlbumTrack> = withContext(Dispatchers.IO) {
+    val connection = URL("https://api.spotify.com/v1/albums/" + albumId + "/tracks?limit=50").openConnection() as HttpURLConnection
+    try {
+        connection.setRequestProperty("Authorization", "Bearer " + token); connection.connectTimeout = 15000; connection.readTimeout = 15000
+        val code = connection.responseCode; val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+        val body = stream.bufferedReader().use { it.readText() }
+        if (code !in 200..299) throw IllegalStateException("erreur pistes " + code)
+        val items = JSONObject(body).optJSONArray("items") ?: return@withContext emptyList()
+        buildList { for (i in 0 until items.length()) { val item = items.getJSONObject(i); val id = item.optString("id"); if (id.isNotBlank()) add(AlbumTrack(item.optString("name", "Piste " + (i+1)), "spotify:track:" + id)) } }
+    } finally { connection.disconnect() }
+}
+
 @Composable
-private fun AlbumRoomScreen(album: Album, onBack: () -> Unit, playingTrack: Int, onPlayTrack: (Int) -> Unit) {
-    val tracks = listOf("First Light", "The Only Moment We Were Alone", "Six Days at the Bottom of the Ocean", "Memorial", "Your Hand in Mine")
+private fun AlbumRoomScreen(album: Album, spotifyTracks: List<AlbumTrack>, onBack: () -> Unit, playingTrack: Int, setPlayingTrack: (Int) -> Unit, onPlaySpotifyUri: (String) -> Unit, onPauseSpotify: () -> Unit) {
+    val tracks = spotifyTracks.map { it.name }.ifEmpty { listOf("Ouvrir l album dans Spotify") }
     val transition = rememberInfiniteTransition(label = "vinyl")
     val rotation by transition.animateFloat(initialValue = 0f, targetValue = 360f, animationSpec = infiniteRepeatable(tween(9000, easing = androidx.compose.animation.core.LinearEasing)), label = "vinyl-spin")
     val pulse by transition.animateFloat(initialValue = .35f, targetValue = .8f, animationSpec = infiniteRepeatable(tween(2200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "room-pulse")
@@ -318,7 +366,7 @@ private fun AlbumRoomScreen(album: Album, onBack: () -> Unit, playingTrack: Int,
         Text(album.artist,color=Gold,fontSize=14.sp)
         Spacer(Modifier.height(20.dp))
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Button(onClick={onPlayTrack(if(playingTrack<0)0 else -1)},colors=ButtonDefaults.buttonColors(containerColor=Gold,contentColor=Night),shape=androidx.compose.foundation.shape.CircleShape,modifier=Modifier.height(50.dp)) {
+            Button(onClick={ if (playingTrack >= 0) { onPauseSpotify(); setPlayingTrack(-1) } else { album.spotifyUri?.let(onPlaySpotifyUri); setPlayingTrack(0) } },enabled=album.spotifyUri != null || spotifyTracks.isNotEmpty(),colors=ButtonDefaults.buttonColors(containerColor=Gold,contentColor=Night),shape=androidx.compose.foundation.shape.CircleShape,modifier=Modifier.height(50.dp)) {
                 Icon(if(playingTrack>=0)Icons.Default.Pause else Icons.Default.PlayArrow,null)
                 Spacer(Modifier.width(7.dp))
                 Text(if(playingTrack>=0)"METTRE EN PAUSE" else "LANCER L'ÉCOUTE",fontWeight=FontWeight.Bold,letterSpacing=1.sp)
@@ -329,7 +377,7 @@ private fun AlbumRoomScreen(album: Album, onBack: () -> Unit, playingTrack: Int,
         Spacer(Modifier.height(24.dp))
         SectionHeading("LA FACE A", "5 MORCEAUX")
         tracks.forEachIndexed { i, track ->
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onPlayTrack(if (playingTrack == i) -1 else i) }.background(if(playingTrack==i)Color(0x332C2228) else Color.Transparent).padding(horizontal=10.dp,vertical=15.dp), verticalAlignment=Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { val uri = spotifyTracks.getOrNull(i)?.uri; if (playingTrack == i) { onPauseSpotify(); setPlayingTrack(-1) } else if (uri != null) { onPlaySpotifyUri(uri); setPlayingTrack(i) } else album.spotifyUri?.let { onPlaySpotifyUri(it); setPlayingTrack(0) } }.background(if(playingTrack==i)Color(0x332C2228) else Color.Transparent).padding(horizontal=10.dp,vertical=15.dp), verticalAlignment=Alignment.CenterVertically) {
                 Text(String.format("%02d", i + 1), color = Gold, modifier = Modifier.width(34.dp),fontSize=11.sp)
                 Column(Modifier.weight(1f)) {
                     Text(track, color = if (playingTrack == i) Gold else Parchment, fontSize = 13.sp,fontWeight=if(playingTrack==i)FontWeight.SemiBold else FontWeight.Normal)
