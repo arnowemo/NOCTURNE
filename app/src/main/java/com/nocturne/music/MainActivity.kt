@@ -298,33 +298,38 @@ private suspend fun addAlbumToLibrary(token: String, id: String) = withContext(D
 }
 
 private suspend fun loadSavedAlbums(token: String): List<Album> = withContext(Dispatchers.IO) {
-    val connection = (URL("https://api.spotify.com/v1/me/albums?limit=50").openConnection() as HttpURLConnection)
-    try {
-        connection.requestMethod = "GET"
-        connection.setRequestProperty("Authorization", "Bearer $token")
-        connection.connectTimeout = 15000
-        connection.readTimeout = 15000
-        val code = connection.responseCode
-        val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-        val body = stream.bufferedReader().use { it.readText() }
-        if (code !in 200..299) throw IllegalStateException("erreur API $code")
-        val items = JSONObject(body).optJSONArray("items") ?: return@withContext emptyList()
-        val colors = listOf(Color(0xFF777968), Color(0xFF987C75), Color(0xFF526875), Color(0xFF705665), Color(0xFF82785F))
-        val symbols = listOf("✦", "☾", "✧", "✦", "⌁")
-        buildList {
+    val result = mutableListOf<Album>()
+    val colors = listOf(Color(0xFF777968), Color(0xFF987C75), Color(0xFF526875), Color(0xFF705665), Color(0xFF82785F))
+    val symbols = listOf("✦", "☾", "✧", "✦", "⌁")
+    var offset = 0
+    var total = Int.MAX_VALUE
+    while (offset < total) {
+        val connection = URL("https://api.spotify.com/v1/me/albums?limit=50&offset=" + offset).openConnection() as HttpURLConnection
+        try {
+            connection.setRequestProperty("Authorization", "Bearer " + token)
+            connection.connectTimeout = 15000
+            connection.readTimeout = 15000
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val body = stream.bufferedReader().use { it.readText() }
+            if (code !in 200..299) throw IllegalStateException("erreur API " + code)
+            val root = JSONObject(body)
+            val items = root.optJSONArray("items") ?: break
+            total = root.optInt("total", result.size + items.length())
             for (i in 0 until items.length()) {
                 val album = items.getJSONObject(i).getJSONObject("album")
                 val images = album.optJSONArray("images")
                 val image = if (images != null && images.length() > 0) images.getJSONObject(0).optString("url").takeIf { it.isNotBlank() } else null
                 val artists = album.optJSONArray("artists")
                 val artist = if (artists != null && artists.length() > 0) artists.getJSONObject(0).optString("name") else "Artiste inconnu"
-                val albumId = album.optString("id").takeIf { it.isNotBlank() }
-                add(Album(album.optString("name", "Album sans titre"), artist, colors[i % colors.size], symbols[i % symbols.size], image, albumId, albumId?.let { "spotify:album:" + it }))
+                val id = album.optString("id").takeIf { it.isNotBlank() }
+                result.add(Album(album.optString("name", "Album sans titre"), artist, colors[result.size % 5], symbols[result.size % 5], image, id, id?.let { "spotify:album:" + it }))
             }
-        }
-    } finally {
-        connection.disconnect()
+            offset += items.length()
+            if (items.length() == 0) break
+        } finally { connection.disconnect() }
     }
+    result
 }
 
 @Composable
