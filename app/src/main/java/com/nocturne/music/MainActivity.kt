@@ -234,7 +234,21 @@ fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin
                         Spacer(Modifier.height(7.dp))
                         Text("Faites défiler votre collection.",color=Gold.copy(alpha=.82f),fontSize=12.sp,letterSpacing=1.sp)
                     }
-                    AlbumCarousel(items=collection,selected=selected,onSelect={selected=it;openedAlbum=it},onFocus={selected=it})
+                    if (catalogMode) {
+                        Column(Modifier.fillMaxWidth().heightIn(max=430.dp).verticalScroll(rememberScrollState()).padding(horizontal=18.dp)) {
+                            searchResults.forEach { album ->
+                                Row(Modifier.fillMaxWidth().padding(vertical=5.dp).clip(RoundedCornerShape(10.dp)).background(Stone).clickable { selected=album;openedAlbum=album }.padding(8.dp),verticalAlignment=Alignment.CenterVertically) {
+                                    AlbumArtwork(album,Modifier.size(58.dp))
+                                    Spacer(Modifier.width(10.dp))
+                                    Column(Modifier.weight(1f)) { Text(album.title,color=Parchment,fontSize=11.sp,maxLines=2); Text(album.artist,color=Ash,fontSize=9.sp) }
+                                    TextButton(onClick={ val id=album.spotifyId; if(id!=null && spotifyToken!=null) { kotlinx.coroutines.MainScope().launch { try { addAlbumToLibrary(spotifyToken,id); collection=loadSavedAlbums(spotifyToken); searchMessage="Album ajouté à ta collection" } catch(e:Exception) { searchMessage="Ajout impossible : "+(e.message ?: "erreur") } } } }) { Text("+ AJOUTER",color=Gold,fontSize=8.sp) }
+                                }
+                            }
+                            if(searchQuery.length<2) Text("Recherche le catalogue Spotify par album ou artiste.",color=Ash,fontSize=11.sp)
+                        }
+                    } else {
+                        AlbumCarousel(items=collection,selected=selected,onSelect={selected=it;openedAlbum=it},onFocus={selected=it})
+                    }
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Row(horizontalArrangement=Arrangement.spacedBy(7.dp),verticalAlignment=Alignment.CenterVertically) {
                             Icon(Icons.Default.Swipe,null,tint=Gold,modifier=Modifier.size(17.dp))
