@@ -137,10 +137,14 @@ class MainActivity : ComponentActivity() {
         val remote = spotifyRemote
         if (remote != null) remote.playerApi.play(uri) else { pendingSpotifyUri = uri; connectSpotifyRemote() }
     }
-    override fun onStop() {
-        spotifyRemote?.let { try { it.playerApi.pause() } catch (_: Exception) { }; SpotifyAppRemote.disconnect(it) }
+    // Laisser Spotify continuer lorsque NOCTURNE passe en arrière-plan.
+    override fun onDestroy() {
+        spotifyRemote?.let {
+            try { it.playerApi.pause() } catch (_: Exception) { }
+            SpotifyAppRemote.disconnect(it)
+        }
         spotifyRemote = null
-        super.onStop()
+        super.onDestroy()
     }
 }
 
@@ -269,12 +273,15 @@ fun NocturneApp(spotifyToken: String?, spotifyAuthStatus: String, onSpotifyLogin
 
 private suspend fun searchSpotifyAlbums(token: String, query: String): List<Album> = withContext(Dispatchers.IO) {
     val q=java.net.URLEncoder.encode(query,"UTF-8")
-    val conn=URL("https://api.spotify.com/v1/search?q=" + q + "&type=album&limit=50").openConnection() as HttpURLConnection
+    val conn=URL("https://api.spotify.com/v1/search?q=" + q + "&type=album&limit=10").openConnection() as HttpURLConnection
     try {
         conn.setRequestProperty("Authorization","Bearer " + token)
         val code=conn.responseCode
         val body=(if(code in 200..299) conn.inputStream else conn.errorStream).bufferedReader().use{it.readText()}
-        if(code !in 200..299) throw IllegalStateException("Spotify API " + code)
+        if(code !in 200..299) {
+            val detail = try { JSONObject(body).optJSONObject("error")?.optString("message") } catch (_: Exception) { null }
+            throw IllegalStateException("Spotify API " + code + (detail?.takeIf { it.isNotBlank() }?.let { " : " + it } ?: ""))
+        }
         val items=JSONObject(body).optJSONObject("albums")?.optJSONArray("items") ?: return@withContext emptyList()
         val colors=listOf(Color(0xFF777968),Color(0xFF987C75),Color(0xFF526875),Color(0xFF705665),Color(0xFF82785F))
         val symbols=listOf("✦","☾","✧","✦","⌁")
@@ -289,11 +296,12 @@ private suspend fun searchSpotifyAlbums(token: String, query: String): List<Albu
 }
 
 private suspend fun addAlbumToLibrary(token: String, id: String) = withContext(Dispatchers.IO) {
-    val conn=URL("https://api.spotify.com/v1/me/albums?ids=" + id).openConnection() as HttpURLConnection
+    val conn=URL("https://api.spotify.com/v1/me/library").openConnection() as HttpURLConnection
     try {
         conn.requestMethod="PUT"; conn.setRequestProperty("Authorization","Bearer " + token)
         conn.setRequestProperty("Content-Type","application/json"); conn.doOutput=true
-        conn.outputStream.use{it.write("{}".toByteArray())}
+        val payload = JSONObject().put("uris", org.json.JSONArray().put("spotify:album:" + id)).toString()
+        conn.outputStream.use{it.write(payload.toByteArray(Charsets.UTF_8))}
         if(conn.responseCode !in 200..299) throw IllegalStateException("Spotify API " + conn.responseCode)
     } finally { conn.disconnect() }
 }
