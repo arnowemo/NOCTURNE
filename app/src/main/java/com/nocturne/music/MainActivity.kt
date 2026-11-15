@@ -2,6 +2,12 @@ package com.nocturne.music
 
 import android.os.Bundle
 import android.content.Intent
+import android.net.Uri
+import android.util.Base64
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.net.URLEncoder
+import kotlinx.coroutines.MainScope
 import com.spotify.sdk.android.auth.AuthorizationClient
 import com.spotify.sdk.android.auth.AuthorizationRequest
 import com.spotify.sdk.android.auth.AuthorizationResponse
@@ -72,52 +78,99 @@ private val albums = listOf(
     Album("Young Mountain", "This Will Destroy You", Color(0xFF82785F), "⌁")
 )
 
-private const val SPOTIFY_REQUEST_CODE = 7301
+
 
 class MainActivity : ComponentActivity() {
     private var spotifyToken by mutableStateOf<String?>(null)
     private var spotifyAuthStatus by mutableStateOf("Connexion non démarrée")
     private var spotifyRemote: SpotifyAppRemote? = null
     private var pendingSpotifyUri: String? = null
+    private val authScope = MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = getSharedPreferences("nocturne_spotify", MODE_PRIVATE)
         val savedToken = prefs.getString("access_token", null)
+        val savedRefresh = prefs.getString("refresh_token", null)
         val expiresAt = prefs.getLong("expires_at", 0L)
-        if (!savedToken.isNullOrBlank() && System.currentTimeMillis() < expiresAt) { spotifyToken = savedToken; spotifyAuthStatus = "Session Spotify restaurée" } else { prefs.edit().remove("access_token").remove("expires_at").apply() }
         setContent { NocturneApp(spotifyToken = spotifyToken, spotifyAuthStatus = spotifyAuthStatus, onSpotifyLogin = { connectSpotify() }, onPlaySpotifyUri = { playSpotifyUri(it) }, onPauseSpotify = { spotifyRemote?.playerApi?.pause() }) }
-        if (spotifyToken != null) connectSpotifyRemote()
+        if (intent?.data != null) handleSpotifyRedirect(intent)
+        else if (!savedToken.isNullOrBlank() && System.currentTimeMillis() < expiresAt) {
+            spotifyToken = savedToken; spotifyAuthStatus = "Session Spotify restaurée"; connectSpotifyRemote()
+        } else if (!savedRefresh.isNullOrBlank()) {
+            authScope.launch {
+                try { val token = refreshSpotifyAccessToken(savedRefresh); saveSpotifyTokens(token); spotifyToken = token.getString("access_token"); spotifyAuthStatus = "Session Spotify renouvelée"; connectSpotifyRemote() }
+                catch (_: Exception) { spotifyAuthStatus = "Session expirée — reconnectez Spotify" }
+            }
+        } else { spotifyAuthStatus = "Connectez votre compte Spotify" }
     }
 
     private fun connectSpotify() {
-        spotifyAuthStatus = "Ouverture de Spotify…"
         try {
-        val request = AuthorizationRequest.Builder(
-            BuildConfig.SPOTIFY_CLIENT_ID,
-            AuthorizationResponse.Type.TOKEN,
-            BuildConfig.SPOTIFY_REDIRECT_URI
-        ).setScopes(arrayOf("user-library-read", "user-library-modify", "user-read-private"))
-            .setShowDialog(true)
-            .build()
-        AuthorizationClient.openLoginActivity(this, SPOTIFY_REQUEST_CODE, request)
+            val verifier = randomUrlSafe(64)
+            val challenge = Base64.encodeToString(MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII)), Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+            val state = randomUrlSafe(32)
+            getSharedPreferences("nocturne_spotify", MODE_PRIVATE).edit().putString("pkce_verifier", verifier).putString("oauth_state", state).apply()
+            val url = Uri.parse("https://accounts.spotify.com/authorize").buildUpon()
+                .appendQueryParameter("client_id", BuildConfig.SPOTIFY_CLIENT_ID)
+                .appendQueryParameter("response_type", "code")
+                .appendQueryParameter("redirect_uri", BuildConfig.SPOTIFY_REDIRECT_URI)
+                .appendQueryParameter("scope", "user-library-read user-library-modify user-read-private app-remote-control")
+                .appendQueryParameter("code_challenge_method", "S256")
+                .appendQueryParameter("code_challenge", challenge)
+                .appendQueryParameter("state", state)
+                .build()
+            spotifyAuthStatus = "Ouverture de la connexion sécurisée Spotify…"
+            startActivity(Intent(Intent.ACTION_VIEW, url))
         } catch (e: Exception) {
-            spotifyAuthStatus = "Impossible de lancer Spotify : ${e.javaClass.simpleName} ${e.message ?: ""}"
+            spotifyAuthStatus = "Impossible d'ouvrir Spotify : ${e.message ?: e.javaClass.simpleName}"
         }
     }
 
-    @Deprecated("Spotify auth library returns its result through this callback")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == SPOTIFY_REQUEST_CODE) {
-            val response = AuthorizationClient.getResponse(resultCode, data)
-            when (response.type) {
-                AuthorizationResponse.Type.TOKEN -> { spotifyToken = response.accessToken; val lifetimeMs = (response.expiresIn.coerceAtLeast(60) - 60).toLong() * 1000L; getSharedPreferences("nocturne_spotify", MODE_PRIVATE).edit().putString("access_token", response.accessToken).putLong("expires_at", System.currentTimeMillis() + lifetimeMs).apply(); spotifyAuthStatus = "Connexion réussie — session mémorisée"; connectSpotifyRemote() }
-                AuthorizationResponse.Type.ERROR -> { spotifyToken = null; spotifyAuthStatus = "Erreur Spotify : ${response.error ?: "non précisée"}" }
-                AuthorizationResponse.Type.CANCELLED -> { spotifyToken = null; spotifyAuthStatus = "Connexion annulée" }
-                else -> { spotifyToken = null; spotifyAuthStatus = "Réponse Spotify inattendue : ${response.type}" }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleSpotifyRedirect(intent)
+    }
+
+    private fun handleSpotifyRedirect(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "nocturne" || uri.host != "callback") return
+        val prefs = getSharedPreferences("nocturne_spotify", MODE_PRIVATE)
+        val expectedState = prefs.getString("oauth_state", null)
+        val verifier = prefs.getString("pkce_verifier", null)
+        val receivedState = uri.getQueryParameter("state")
+        val code = uri.getQueryParameter("code")
+        val error = uri.getQueryParameter("error")
+        if (expectedState.isNullOrBlank() || verifier.isNullOrBlank() || receivedState != expectedState) {
+            spotifyAuthStatus = "Connexion refusée : vérification de sécurité invalide"
+            return
+        }
+        prefs.edit().remove("oauth_state").remove("pkce_verifier").apply()
+        if (!error.isNullOrBlank() || code.isNullOrBlank()) {
+            spotifyAuthStatus = "Connexion Spotify refusée : ${error ?: "code manquant"}"
+            return
+        }
+        authScope.launch {
+            try {
+                val token = exchangeSpotifyCode(code, verifier)
+                saveSpotifyTokens(token)
+                spotifyToken = token.getString("access_token")
+                spotifyAuthStatus = "Connexion Spotify réussie"
+                connectSpotifyRemote()
+            } catch (e: Exception) {
+                spotifyAuthStatus = "Échec OAuth Spotify : ${e.message ?: "erreur inconnue"}"
             }
         }
+    }
+
+    private fun saveSpotifyTokens(token: JSONObject) {
+        val expires = token.optLong("expires_in", 3600L)
+        val editor = getSharedPreferences("nocturne_spotify", MODE_PRIVATE).edit()
+            .putString("access_token", token.getString("access_token"))
+            .putLong("expires_at", System.currentTimeMillis() + (expires - 60).coerceAtLeast(60) * 1000L)
+        token.optString("refresh_token").takeIf { it.isNotBlank() }?.let { editor.putString("refresh_token", it) }
+        editor.apply()
     }
 
     private fun connectSpotifyRemote() {
@@ -575,4 +628,42 @@ private fun NavItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label
         Spacer(Modifier.height(4.dp))
         Text(label, color = if (selected) Gold else Ash, fontSize = 9.sp)
     }
+}
+
+
+private fun randomUrlSafe(bytes: Int): String {
+    val data = ByteArray(bytes)
+    SecureRandom().nextBytes(data)
+    return Base64.encodeToString(data, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+}
+
+private suspend fun exchangeSpotifyCode(code: String, verifier: String): JSONObject = withContext(Dispatchers.IO) {
+    val body = "client_id=" + URLEncoder.encode(BuildConfig.SPOTIFY_CLIENT_ID, "UTF-8") +
+        "&grant_type=authorization_code&code=" + URLEncoder.encode(code, "UTF-8") +
+        "&redirect_uri=" + URLEncoder.encode(BuildConfig.SPOTIFY_REDIRECT_URI, "UTF-8") +
+        "&code_verifier=" + URLEncoder.encode(verifier, "UTF-8")
+    spotifyTokenRequest(body)
+}
+
+private suspend fun refreshSpotifyAccessToken(refreshToken: String): JSONObject = withContext(Dispatchers.IO) {
+    val body = "client_id=" + URLEncoder.encode(BuildConfig.SPOTIFY_CLIENT_ID, "UTF-8") +
+        "&grant_type=refresh_token&refresh_token=" + URLEncoder.encode(refreshToken, "UTF-8")
+    spotifyTokenRequest(body)
+}
+
+private fun spotifyTokenRequest(body: String): JSONObject {
+    val conn = URL("https://accounts.spotify.com/api/token").openConnection() as HttpURLConnection
+    try {
+        conn.requestMethod = "POST"
+        conn.connectTimeout = 15000
+        conn.readTimeout = 15000
+        conn.doOutput = true
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+        conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+        val code = conn.responseCode
+        val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+        val response = stream.bufferedReader().use { it.readText() }
+        if (code !in 200..299) throw IllegalStateException("Spotify token API $code : $response")
+        JSONObject(response)
+    } finally { conn.disconnect() }
 }
