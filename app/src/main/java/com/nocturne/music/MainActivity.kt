@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
             BuildConfig.SPOTIFY_CLIENT_ID,
             AuthorizationResponse.Type.TOKEN,
             BuildConfig.SPOTIFY_REDIRECT_URI
-        ).setScopes(arrayOf("user-library-read", "user-read-private"))
+        ).setScopes(arrayOf("user-library-read", "user-library-modify", "user-read-private"))
             .setShowDialog(true)
             .build()
         AuthorizationClient.openLoginActivity(this, SPOTIFY_REQUEST_CODE, request)
