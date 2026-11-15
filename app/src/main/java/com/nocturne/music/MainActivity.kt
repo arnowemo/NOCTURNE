@@ -146,40 +146,62 @@ fun NocturneApp() {
 @Composable
 private fun AlbumRoomScreen(album: Album, onBack: () -> Unit, playingTrack: Int, onPlayTrack: (Int) -> Unit) {
     val tracks = listOf("First Light", "The Only Moment We Were Alone", "Six Days at the Bottom of the Ocean", "Memorial", "Your Hand in Mine")
-    Column(Modifier.fillMaxSize().background(Night).verticalScroll(rememberScrollState()).padding(horizontal = 22.dp)) {
-        Spacer(Modifier.height(30.dp))
+    val transition = rememberInfiniteTransition(label = "vinyl")
+    val rotation by transition.animateFloat(initialValue = 0f, targetValue = 360f, animationSpec = infiniteRepeatable(tween(9000, easing = androidx.compose.animation.core.LinearEasing)), label = "vinyl-spin")
+    val pulse by transition.animateFloat(initialValue = .35f, targetValue = .8f, animationSpec = infiniteRepeatable(tween(2200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "room-pulse")
+    Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF25191D), Night, Color(0xFF050507)))).verticalScroll(rememberScrollState()).padding(horizontal = 22.dp)) {
+        Spacer(Modifier.height(26.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Retour", tint = Gold) }
-            Text("NOCTURNE  /  SALLE D'ÉCOUTE", color = Gold, fontSize = 10.sp, letterSpacing = 2.sp)
-        }
-        Box(Modifier.fillMaxWidth().height(310.dp).clip(RoundedCornerShape(topStart = 140.dp, topEnd = 140.dp, bottomStart = 12.dp, bottomEnd = 12.dp)).background(Brush.verticalGradient(listOf(Color(0xFF49343A), Color(0xFF211923), Night))).border(1.dp, Gold.copy(alpha = .3f), RoundedCornerShape(topStart = 140.dp, topEnd = 140.dp, bottomStart = 12.dp, bottomEnd = 12.dp)), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("✧", color = Gold, fontSize = 24.sp)
-                AlbumArtwork(album, Modifier.size(210.dp))
-                Text("LA PIÈCE CENTRALE", color = Gold, fontSize = 9.sp, letterSpacing = 2.sp)
+            Column {
+                Text("NOCTURNE  /  SALLE D'ÉCOUTE", color = Gold, fontSize = 9.sp, letterSpacing = 2.sp)
+                Text("PRENEZ PLACE, LA PIÈCE EST À VOUS", color = Ash, fontSize = 7.sp, letterSpacing = 1.4.sp)
             }
         }
-        Spacer(Modifier.height(22.dp))
-        Text(album.title, color = Parchment, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
-        Text(album.artist, color = Gold, fontSize = 14.sp)
-        Spacer(Modifier.height(18.dp))
-        Button(onClick = { onPlayTrack(if (playingTrack < 0) 0 else -1) }, colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Night)) {
-            Icon(if (playingTrack >= 0) Icons.Default.Pause else Icons.Default.PlayArrow, null)
-            Text(if (playingTrack >= 0) "PAUSE" else "ÉCOUTER")
+        Spacer(Modifier.height(12.dp))
+        Box(Modifier.fillMaxWidth().height(350.dp).clip(RoundedCornerShape(26.dp)).background(Brush.radialGradient(listOf(Color(0xFF69463F).copy(alpha=pulse),Color(0xFF211820),Night))).border(1.dp, Gold.copy(alpha=.38f), RoundedCornerShape(26.dp)), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(292.dp).graphicsLayer { rotationZ = rotation }.background(Brush.radialGradient(listOf(Color(0xFF38343A),Color(0xFF141217),Color(0xFF050507)), radius=520f), RoundedCornerShape(50)).border(1.dp, Color.White.copy(alpha=.12f), RoundedCornerShape(50)))
+            Box(Modifier.size(292.dp).graphicsLayer { rotationZ = rotation }.padding(12.dp).border(1.dp, Color.White.copy(alpha=.10f), RoundedCornerShape(50)))
+            Box(Modifier.size(90.dp).clip(RoundedCornerShape(50)).background(Brush.linearGradient(listOf(album.tint,Color(0xFF17121A)))).border(2.dp,Gold.copy(alpha=.65f),RoundedCornerShape(50)),contentAlignment=Alignment.Center) {
+                Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                    Text(album.symbol,color=Gold,fontSize=30.sp)
+                    Text("NOCTURNE",color=Parchment,fontSize=6.sp,letterSpacing=1.5.sp)
+                }
+            }
+            Box(Modifier.align(Alignment.TopCenter).padding(top=18.dp).width(90.dp).height(2.dp).background(Brush.horizontalGradient(listOf(Color.Transparent,Gold,Color.Transparent))))
+            Text("FACE A  ·  33⅓ RPM",color=Gold.copy(alpha=.8f),fontSize=8.sp,letterSpacing=2.sp,modifier=Modifier.align(Alignment.BottomCenter).padding(bottom=18.dp))
         }
-        Spacer(Modifier.height(22.dp))
-        SectionHeading("LES MORCEAUX", "APERÇU")
+        Spacer(Modifier.height(25.dp))
+        Text("EN COURS D'EXPLORATION",color=Gold,fontSize=8.sp,letterSpacing=2.5.sp)
+        Spacer(Modifier.height(7.dp))
+        Text(album.title,color=Parchment,fontSize=25.sp,lineHeight=30.sp,fontWeight=FontWeight.SemiBold)
+        Text(album.artist,color=Gold,fontSize=14.sp)
+        Spacer(Modifier.height(20.dp))
+        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            Button(onClick={onPlayTrack(if(playingTrack<0)0 else -1)},colors=ButtonDefaults.buttonColors(containerColor=Gold,contentColor=Night),shape=RoundedCornerShape(50),modifier=Modifier.height(50.dp)) {
+                Icon(if(playingTrack>=0)Icons.Default.Pause else Icons.Default.PlayArrow,null)
+                Spacer(Modifier.width(7.dp))
+                Text(if(playingTrack>=0)"METTRE EN PAUSE" else "LANCER L'ÉCOUTE",fontWeight=FontWeight.Bold,letterSpacing=1.sp)
+            }
+            IconButton(onClick={}) { Icon(Icons.Default.FavoriteBorder,null,tint=Gold) }
+            IconButton(onClick={}) { Icon(Icons.Default.MoreHoriz,null,tint=Gold) }
+        }
+        Spacer(Modifier.height(24.dp))
+        SectionHeading("LA FACE A", "5 MORCEAUX")
         tracks.forEachIndexed { i, track ->
-            Row(Modifier.fillMaxWidth().clickable { onPlayTrack(if (playingTrack == i) -1 else i) }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(String.format("%02d", i + 1), color = Gold, modifier = Modifier.width(34.dp))
-                Text(track, color = if (playingTrack == i) Gold else Parchment, modifier = Modifier.weight(1f), fontSize = 13.sp)
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onPlayTrack(if (playingTrack == i) -1 else i) }.background(if(playingTrack==i)Color(0x332C2228) else Color.Transparent).padding(horizontal=10.dp,vertical=15.dp), verticalAlignment=Alignment.CenterVertically) {
+                Text(String.format("%02d", i + 1), color = Gold, modifier = Modifier.width(34.dp),fontSize=11.sp)
+                Column(Modifier.weight(1f)) {
+                    Text(track, color = if (playingTrack == i) Gold else Parchment, fontSize = 13.sp,fontWeight=if(playingTrack==i)FontWeight.SemiBold else FontWeight.Normal)
+                    if(playingTrack==i) Text("EN ÉCOUTE",color=Gold.copy(alpha=.75f),fontSize=7.sp,letterSpacing=1.5.sp)
+                }
                 Icon(if (playingTrack == i) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = Gold)
             }
             Divider(color = Gold.copy(alpha = .12f))
         }
-        Spacer(Modifier.height(24.dp))
-        Text("Aperçu visuel uniquement : la lecture Spotify sera ajoutée ensuite.", color = Ash, fontSize = 10.sp)
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(20.dp))
+        Text("Un instant à part. Laissez l'album vous raconter son histoire.",color=Ash,fontSize=10.sp)
+        Spacer(Modifier.height(35.dp))
     }
 }
 
