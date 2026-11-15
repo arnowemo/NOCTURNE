@@ -8,18 +8,16 @@
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity android:name="com.spotify.sdk.android.auth.LoginActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar" android:exported="false" />
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-        <activity android:name="com.spotify.sdk.android.auth.browser.RedirectUriReceiverActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="nocturne" android:host="callback" android:pathPattern=".*" />
+                <data android:scheme="nocturne" android:host="callback" />
             </intent-filter>
         </activity>
     </application>
