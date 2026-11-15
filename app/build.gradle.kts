@@ -36,5 +36,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.spotify.android:auth:5.0.0")
+    implementation(files("libs/spotify-app-remote-release-0.8.0.aar"))
+    implementation("com.google.code.gson:gson:2.10.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
