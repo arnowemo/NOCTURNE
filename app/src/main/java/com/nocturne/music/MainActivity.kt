@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -18,12 +19,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 private val Night = Color(0xFF08080B)
 private val Stone = Color(0xFF17151A)
@@ -81,31 +85,52 @@ fun NocturneApp() {
                     }
 
                     Spacer(Modifier.height(30.dp))
-                    // Monumental gothic portal / hero panel.
+                    // Photographic record-store entrance with cinematic overlays.
+                    val glow = rememberInfiniteTransition(label = "ambient-glow")
+                    val glowAlpha by glow.animateFloat(
+                        initialValue = 0.10f,
+                        targetValue = 0.24f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(3200),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "glow-alpha"
+                    )
                     Box(
-                        Modifier.fillMaxWidth().height(208.dp)
-                            .clip(RoundedCornerShape(topStart = 100.dp, topEnd = 100.dp, bottomStart = 12.dp, bottomEnd = 12.dp))
-                            .background(
+                        Modifier.fillMaxWidth().height(238.dp)
+                            .clip(RoundedCornerShape(topStart = 92.dp, topEnd = 92.dp, bottomStart = 14.dp, bottomEnd = 14.dp))
+                            .border(1.dp, Gold.copy(alpha = .42f), RoundedCornerShape(topStart = 92.dp, topEnd = 92.dp, bottomStart = 14.dp, bottomEnd = 14.dp))
+                    ) {
+                        AsyncImage(
+                            model = "https://images.unsplash.com/photo-1758405392912-eb488da67a82?auto=format&fit=crop&w=1400&q=85",
+                            contentDescription = "Intérieur d'un magasin de vinyles",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Box(
+                            Modifier.fillMaxSize().background(
                                 Brush.verticalGradient(
-                                    listOf(Color(0xFF4A3940), Color(0xFF211A24), Color(0xFF100F14))
+                                    listOf(Color(0x33100A08), Color(0xAA120D12), Color(0xF208080B))
                                 )
                             )
-                            .border(1.dp, Gold.copy(alpha = .28f), RoundedCornerShape(topStart = 100.dp, topEnd = 100.dp, bottomStart = 12.dp, bottomEnd = 12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
-                            repeat(3) {
-                                Box(Modifier.width(1.dp).fillMaxHeight(.72f).background(Gold.copy(alpha = .18f)))
-                            }
+                        )
+                        Box(
+                            Modifier.fillMaxSize().background(
+                                Brush.radialGradient(
+                                    colors = listOf(Gold.copy(alpha = glowAlpha), Color.Transparent),
+                                    radius = 620f
+                                )
+                            )
+                        )
+                        Column(
+                            Modifier.align(Alignment.BottomStart).padding(start = 22.dp, end = 22.dp, bottom = 22.dp)
+                        ) {
+                            Text("✦  ARCHIVES SONORES  ✦", color = Gold, fontSize = 9.sp, letterSpacing = 2.5.sp)
+                            Spacer(Modifier.height(7.dp))
+                            Text("Entrez dans votre\nunivers musical.", color = Parchment, fontSize = 25.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(5.dp))
+                            Text("Une collection à explorer, album après album.", color = Parchment.copy(alpha = .82f), fontSize = 11.sp)
                         }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("✧", color = Gold, fontSize = 28.sp)
-                            Text("LÀ OÙ LA MUSIQUE", color = Parchment, fontSize = 12.sp, letterSpacing = 3.sp, fontWeight = FontWeight.Medium)
-                            Text("PREND FORME", color = Parchment, fontSize = 24.sp, letterSpacing = 2.sp, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(8.dp))
-                            Text("Entrez dans votre bibliothèque", color = Ash, fontSize = 11.sp)
-                        }
-                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Gold.copy(alpha = .55f), modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp).size(18.dp))
                     }
 
                     Spacer(Modifier.height(22.dp))
